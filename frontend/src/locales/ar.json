@@ -1,0 +1,231 @@
+{
+  "app": {
+    "title": "نظام الفوترة وإدارة الطلبات",
+    "subtitle": "إدارة العملاء والمنتجات والطلبات والفواتير"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "clients": "العملاء", 
+    "products": "المنتجات",
+    "orders": "الطلبات",
+    "invoices": "الفواتير",
+    "payments": "المدفوعات",
+    "settings": "الإعدادات"
+  },
+  "actions": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "create": "إنشاء",
+    "search": "بحث",
+    "filter": "تصفية",
+    "export": "تصدير",
+    "import": "استيراد",
+    "download_pdf": "تنزيل PDF",
+    "add": "إضافة",
+    "update": "تحديث",
+    "view": "عرض",
+    "close": "إغلاق",
+    "submit": "إرسال",
+    "reset": "إعادة تعيين"
+  },
+  "status": {
+    "pending": "قيد المعالجة",
+    "confirmed": "مؤكد",
+    "completed": "مكتمل",
+    "canceled": "ملغي",
+    "active": "نشط",
+    "inactive": "غير نشط"
+  },
+  "invoice": {
+    "status": {
+      "draft": "مسودة",
+      "issued": "مصدّرة", 
+      "paid": "مدفوعة",
+      "canceled": "ملغاة"
+    }
+  },
+  "payment": {
+    "methods": {
+      "cash": "نقداً",
+      "card": "بطاقة",
+      "transfer": "تحويل",
+      "other": "أخرى"
+    }
+  },
+  "fields": {
+    "name": "الاسم",
+    "phone": "الهاتف",
+    "email": "البريد الإلكتروني",
+    "address": "العنوان",
+    "description": "الوصف",
+    "price": "السعر",
+    "quantity": "الكمية",
+    "total": "الإجمالي",
+    "subtotal": "المجموع الفرعي",
+    "discount": "الخصم",
+    "tax": "الضريبة",
+    "grand_total": "الإجمالي النهائي",
+    "date": "التاريخ",
+    "due_date": "تاريخ الاستحقاق",
+    "issue_date": "تاريخ الإصدار",
+    "notes": "ملاحظات",
+    "sku": "رمز المنتج",
+    "unit_price": "سعر الوحدة",
+    "currency": "العملة",
+    "order_number": "رقم الطلب",
+    "invoice_number": "رقم الفاتورة",
+    "client": "العميل",
+    "product": "المنتج",
+    "amount": "المبلغ",
+    "method": "الطريقة",
+    "reference": "المرجع",
+    "paid_at": "تاريخ الدفع",
+    "balance": "الرصيد المتبقي",
+    "status": "الحالة"
+  },
+  "messages": {
+    "success": {
+      "created": "تم الإنشاء بنجاح",
+      "updated": "تم التحديث بنجاح", 
+      "deleted": "تم الحذف بنجاح",
+      "saved": "تم الحفظ بنجاح"
+    },
+    "error": {
+      "required": "هذا الحقل مطلوب",
+      "invalid_email": "تنسيق البريد الإلكتروني غير صحيح",
+      "invalid_phone": "رقم الهاتف غير صحيح",
+      "invalid_price": "السعر غير صحيح",
+      "invalid_quantity": "الكمية غير صحيحة",
+      "not_found": "العنصر غير موجود",
+      "network_error": "خطأ في الشبكة",
+      "validation_failed": "فشل في التحقق من البيانات"
+    },
+    "confirm": {
+      "delete": "هل أنت متأكد من الحذف؟",
+      "cancel": "هل أنت متأكد من الإلغاء؟",
+      "save_changes": "حفظ التغييرات؟"
+    },
+    "loading": "جاري التحميل...",
+    "no_data": "لا توجد بيانات",
+    "empty_list": "القائمة فارغة"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "metrics": {
+      "orders_this_month": "الطلبات هذا الشهر",
+      "invoices_this_month": "الفواتير هذا الشهر", 
+      "payments_collected": "المدفوعات المحصلة",
+      "outstanding_invoices": "الفواتير المعلقة"
+    },
+    "charts": {
+      "revenue_by_month": "الإيرادات الشهرية",
+      "top_clients": "أفضل العملاء"
+    }
+  },
+  "clients": {
+    "title": "إدارة العملاء",
+    "create": "إنشاء عميل",
+    "edit": "تعديل العميل",
+    "list": "قائمة العملاء",
+    "search_placeholder": "البحث بالاسم أو الهاتف..."
+  },
+  "products": {
+    "title": "إدارة المنتجات",
+    "create": "إنشاء منتج جديد",
+    "edit": "تعديل المنتج", 
+    "list": "قائمة المنتجات",
+    "search_placeholder": "البحث بالاسم أو رمز المنتج...",
+    "override_price": "تعديل السعر"
+  },
+  "orders": {
+    "title": "إدارة الطلبات",
+    "subtitle": "إدارة طلبات العملاء وتتبع حالتها",
+    "create": "إنشاء طلب جديد",
+    "create_order": "إنشاء طلب",
+    "edit": "تعديل الطلب",
+    "list": "قائمة الطلبات",
+    "details": "تفاصيل الطلب",
+    "add_order": "إضافة طلب",
+    "add_item": "إضافة منتج",
+    "remove_item": "إزالة المنتج",
+    "select_client": "اختيار العميل",
+    "select_product": "اختيار المنتج",
+    "search_client_placeholder": "البحث عن عميل بالاسم أو الهاتف...",
+    "search_product_placeholder": "البحث عن منتج بالاسم أو SKU...",
+    "order_number": "رقم الطلب",
+    "client": "العميل",
+    "total": "الإجمالي",
+    "date": "التاريخ",
+    "items": "العناصر",
+    "product": "المنتج",
+    "product_name": "اسم المنتج",
+    "quantity": "الكمية",
+    "unit_price": "سعر الوحدة",
+    "discount_percent": "نسبة الخصم",
+    "tax_percent": "نسبة الضريبة",
+    "notes": "ملاحظات",
+    "notes_placeholder": "أدخل ملاحظاتك هنا...",
+    "search_placeholder": "البحث بالاسم أو الهاتف...",
+    "no_orders": "لا توجد طلبات",
+    "no_orders_subtitle": "يرجى إضافة طلبات جديدة",
+    "export_pdf": "تصدير إلى PDF",
+    "order_status": {
+      "pending": "معلق",
+      "processing": "قيد المعالجة",
+      "completed": "مكتمل",
+      "cancelled": "ملغى"
+    },
+    "actions": "الإجراءات",
+    "status": "الحالة"
+  },
+  "invoices": {
+    "title": "إدارة الفواتير",
+    "create": "إنشاء فاتورة جديدة",
+    "create_from_order": "إنشاء فاتورة من الطلب",
+    "edit": "تعديل الفاتورة",
+    "list": "قائمة الفواتير",
+    "details": "تفاصيل الفاتورة",
+    "issue": "إصدار الفاتورة",
+    "mark_paid": "تعليم كمدفوعة",
+    "add_payment": "إضافة دفعة",
+    "payment_history": "تاريخ المدفوعات",
+    "invoice_number": "رقم الفاتورة",
+    "client": "العميل",
+    "total": "الإجمالي",
+    "due_date": "تاريخ الاستحقاق",
+    "actions": "الإجراءات",
+    "subtitle": "إدارة الفواتير",
+    "add_invoice": "إضافة فاتورة",
+    "search_placeholder": "البحث عن فاتورة...",
+    "status": {
+      "DRAFT": "مسودة",
+      "ISSUED": "مصدرة",
+      "PAID": "مدفوعة",
+      "CANCELLED": "ملغاة"
+    }
+  },
+  "payments": {
+    "title": "إدارة المدفوعات",
+    "create": "تسجيل دفعة جديدة",
+    "list": "قائمة المدفوعات",
+    "details": "تفاصيل الدفعة"
+  },
+  "currency": {
+    "symbol": "د.ج",
+    "name": "دينار جزائري"
+  },
+  "pagination": {
+    "previous": "السابق",
+    "next": "التالي",
+    "of": "من",
+    "showing": "عرض",
+    "to": "إلى",
+    "results": "نتيجة"
+  },
+  "table": {
+    "no_data": "لا توجد بيانات للعرض",
+    "loading": "جاري تحميل البيانات..."
+  }
+}

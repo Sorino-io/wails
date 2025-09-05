@@ -1,0 +1,230 @@
+{
+  "app": {
+    "title": "Invoice and Order Management System",
+    "subtitle": "Manage clients, products, orders and invoices"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "clients": "Clients",
+    "products": "Products", 
+    "orders": "Orders",
+    "invoices": "Invoices",
+    "payments": "Payments",
+    "settings": "Settings"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "download_pdf": "Download PDF",
+    "add": "Add",
+    "update": "Update",
+    "view": "View",
+    "close": "Close",
+    "submit": "Submit",
+    "reset": "Reset"
+  },
+  "status": {
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "completed": "Completed",
+    "canceled": "Canceled",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "invoice": {
+    "status": {
+      "draft": "Draft",
+      "issued": "Issued",
+      "paid": "Paid",
+      "canceled": "Canceled"
+    }
+  },
+  "payment": {
+    "methods": {
+      "cash": "Cash",
+      "card": "Card",
+      "transfer": "Transfer",
+      "other": "Other"
+    }
+  },
+  "fields": {
+    "name": "Name",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address",
+    "description": "Description",
+    "price": "Price",
+    "quantity": "Quantity",
+    "total": "Total",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "tax": "Tax",
+    "grand_total": "Grand Total",
+    "date": "Date",
+    "due_date": "Due Date",
+    "issue_date": "Issue Date",
+    "notes": "Notes",
+    "sku": "SKU",
+    "unit_price": "Unit Price",
+    "currency": "Currency",
+    "order_number": "Order Number",
+    "invoice_number": "Invoice Number",
+    "client": "Client",
+    "product": "Product",
+    "amount": "Amount",
+    "method": "Method",
+    "reference": "Reference",
+    "paid_at": "Paid At",
+    "balance": "Balance",
+    "status": "Status"
+  },
+  "messages": {
+    "success": {
+      "created": "Created successfully",
+      "updated": "Updated successfully",
+      "deleted": "Deleted successfully",
+      "saved": "Saved successfully"
+    },
+    "error": {
+      "required": "This field is required",
+      "invalid_email": "Invalid email format",
+      "invalid_phone": "Invalid phone number",
+      "invalid_price": "Invalid price",
+      "invalid_quantity": "Invalid quantity",
+      "not_found": "Item not found",
+      "network_error": "Network error",
+      "validation_failed": "Validation failed"
+    },
+    "confirm": {
+      "delete": "Are you sure you want to delete?",
+      "cancel": "Are you sure you want to cancel?",
+      "save_changes": "Save changes?"
+    },
+    "loading": "Loading...",
+    "no_data": "No data available",
+    "empty_list": "List is empty"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "metrics": {
+      "orders_this_month": "Orders This Month",
+      "invoices_this_month": "Invoices This Month",
+      "payments_collected": "Payments Collected",
+      "outstanding_invoices": "Outstanding Invoices"
+    },
+    "charts": {
+      "revenue_by_month": "Revenue by Month",
+      "top_clients": "Top Clients"
+    }
+  },
+  "clients": {
+    "title": "Client Management",
+    "create": "Create New Client",
+    "edit": "Edit Client",
+    "list": "Client List",
+    "search_placeholder": "Search by name or phone..."
+  },
+  "products": {
+    "title": "Product Management",
+    "create": "Create New Product",
+    "edit": "Edit Product",
+    "list": "Product List",
+    "search_placeholder": "Search by name or SKU...",
+    "override_price": "Override Price"
+  },
+  "orders": {
+    "title": "Order Management",
+    "subtitle": "Manage customer orders and track their status",
+    "create": "Create New Order",
+    "create_order": "Create Order",
+    "edit": "Edit Order",
+    "list": "Order List",
+    "details": "Order Details",
+    "add_order": "Add Order",
+    "add_item": "Add Product",
+    "remove_item": "Remove Product",
+    "select_client": "Select Client",
+    "select_product": "Select Product",
+    "search_client_placeholder": "Search client by name or phone...",
+    "search_product_placeholder": "Search product by name or SKU...",
+    "order_number": "Order Number",
+    "client": "Client",
+    "total": "Total",
+    "date": "Date",
+    "items": "Items",
+    "product": "Product",
+    "product_name": "Product Name",
+    "quantity": "Quantity",
+    "unit_price": "Unit Price",
+    "discount_percent": "Discount %",
+    "tax_percent": "Tax %",
+    "notes": "Notes",
+    "notes_placeholder": "Order notes...",
+    "search_placeholder": "Search orders...",
+    "no_orders": "No orders found",
+    "no_orders_subtitle": "Create your first order to get started",
+    "export_pdf": "Export PDF",
+    "order_status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "canceled": "Canceled"
+    },
+    "actions": "Actions",
+    "status": "Status"
+  },
+  "invoices": {
+    "title": "Invoice Management",
+    "create": "Create New Invoice",
+    "create_from_order": "Create Invoice from Order",
+    "edit": "Edit Invoice",
+    "list": "Invoice List",
+    "details": "Invoice Details",
+    "issue": "Issue Invoice",
+    "mark_paid": "Mark as Paid",
+    "add_payment": "Add Payment",
+    "payment_history": "Payment History",
+    "invoice_number": "Invoice Number",
+    "client": "Client",
+    "status": "Status",
+    "total": "Total",
+    "due_date": "Due Date",
+    "actions": "Actions",
+    "subtitle": "Manage Invoices",
+    "add_invoice": "Add Invoice",
+    "search_placeholder": "Search for an invoice..."
+  },
+  "payments": {
+    "title": "Payment Management",
+    "create": "Record New Payment",
+    "list": "Payment List",
+    "details": "Payment Details"
+  },
+  "currency": {
+    "symbol": "DZD",
+    "name": "Algerian Dinar"
+  },
+  "common": {
+    "actions": "Actions",
+    "view": "View",
+    "edit": "Edit",
+    "delete": "Delete",
+    "previous": "Previous",
+    "next": "Next",
+    "showing": "Showing",
+    "to": "to",
+    "of": "of",
+    "results": "results"
+  },
+  "table": {
+    "no_data": "No data to display",
+    "loading": "Loading data..."
+  }
+}
