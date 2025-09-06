@@ -38,21 +38,16 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Get app data directory
-	homeDir, err := os.UserHomeDir()
+	// Get exe root directory
+	exePath, err := os.Executable()
 	if err != nil {
-		log.Printf("failed to get user home directory: %v", err)
+		log.Printf("failed to get executable path: %v", err)
 		return
 	}
+	exeDir := filepath.Dir(exePath)
 
-	appDataDir := filepath.Join(homeDir, ".myproject")
-	if err := os.MkdirAll(appDataDir, 0755); err != nil {
-		log.Printf("failed to create app data directory: %v", err)
-		return
-	}
-
-	// Connect to database
-	dbPath := filepath.Join(appDataDir, "data.db")
+	// Database file in exe root
+	dbPath := filepath.Join(exeDir, "data.db")
 	log.Printf("Connecting to database at: %s", dbPath)
 	database, err := db.Connect(dbPath)
 	if err != nil {
