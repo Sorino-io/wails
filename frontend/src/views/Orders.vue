@@ -807,11 +807,17 @@ const exportOrderPDF = async (order: any) => {
   try {
     console.log('Exporting PDF for order:', order.order.id)
     const pdfBytes = await ExportOrderPDF(order.order.id)
-  // Convert number array to Uint8Array (use from for safety)
-  const uint8Array = Uint8Array.from(pdfBytes as any)
     
+    // Decode base64 string to Uint8Array
+    const binaryString = window.atob(pdfBytes as any);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+
     // Create blob and download
-    const blob = new Blob([uint8Array], { type: 'application/pdf' })
+    const blob = new Blob([bytes], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

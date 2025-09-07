@@ -26,6 +26,7 @@ type App struct {
 	orderPDF       *pdf.OrderPDFGenerator
 	invoicePDF     *pdf.InvoicePDFGenerator
 	invoiceService *services.InvoiceService
+	amiriFont      embed.FS
 }
 
 // NewApp creates a new App application struct
@@ -38,16 +39,20 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Get exe root directory
-	exePath, err := os.Executable()
+	// Get user config directory for the application
+	configDir, err := os.UserConfigDir()
 	if err != nil {
-		log.Printf("failed to get executable path: %v", err)
+		log.Printf("failed to get user config dir: %v", err)
 		return
 	}
-	exeDir := filepath.Dir(exePath)
+	appDir := filepath.Join(configDir, "myproject")
+	if err := os.MkdirAll(appDir, 0755); err != nil {
+		log.Printf("failed to create app config dir: %v", err)
+		return
+	}
 
-	// Database file in exe root
-	dbPath := filepath.Join(exeDir, "data.db")
+	// Database file path
+	dbPath := filepath.Join(appDir, "data.db")
 	log.Printf("Connecting to database at: %s", dbPath)
 	database, err := db.Connect(dbPath)
 	if err != nil {

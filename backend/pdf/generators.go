@@ -28,11 +28,9 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	// For now, use core Helvetica font to avoid missing-font issues
 	pdf.SetFont("Helvetica", "B", 16)
 
-	// Header - Company Information (right-aligned for RTL)
+	// Header - Company Information
 	pdf.SetXY(20, 20)
-	pdf.CellFormat(170, 10, "نظام الفوترة وإدارة الطلبات", "", 1, "R", false, 0, "")
-	pdf.SetFont("Helvetica", "", 12)
-	pdf.CellFormat(170, 8, "Order Management System", "", 1, "R", false, 0, "")
+	pdf.CellFormat(170, 10, "Order Management System", "", 1, "L", false, 0, "")
 	pdf.Ln(10)
 
 	// Order Information
@@ -41,20 +39,20 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	pdf.Ln(8)
 
 	pdf.SetFont("Helvetica", "", 10)
-	pdf.Cell(40, 6, fmt.Sprintf("Issue Date: %s", db.FormatDateArabic(orderDetail.Order.IssueDate)))
+	pdf.Cell(40, 6, fmt.Sprintf("Issue Date: %s", orderDetail.Order.IssueDate.Format("2006-01-02")))
 	pdf.Ln(6)
 
 	if orderDetail.Order.DueDate != nil {
-		pdf.Cell(40, 6, fmt.Sprintf("Due Date: %s", db.FormatDateArabic(*orderDetail.Order.DueDate)))
+		pdf.Cell(40, 6, fmt.Sprintf("Due Date: %s", orderDetail.Order.DueDate.Format("2006-01-02")))
 		pdf.Ln(6)
 	}
 
-	pdf.Cell(40, 6, fmt.Sprintf("Status: %s", getOrderStatusArabic(orderDetail.Order.Status)))
+	pdf.Cell(40, 6, fmt.Sprintf("Status: %s", orderDetail.Order.Status))
 	pdf.Ln(10)
 
 	// Client Information
 	pdf.SetFont("Helvetica", "B", 12)
-	pdf.Cell(40, 8, "Client Information / معلومات العميل")
+	pdf.Cell(40, 8, "Client Information")
 	pdf.Ln(8)
 
 	pdf.SetFont("Helvetica", "", 10)
@@ -81,11 +79,11 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	pdf.SetFont("Helvetica", "B", 10)
 	pdf.SetFillColor(240, 240, 240)
 
-	// Table headers (right to left for RTL)
-	pdf.CellFormat(80, 8, "الوصف / Description", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(20, 8, "الكمية / Qty", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(35, 8, "سعر الوحدة / Unit Price", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(35, 8, "الإجمالي / Total", "1", 1, "C", true, 0, "")
+	// Table headers
+	pdf.CellFormat(80, 8, "Description", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(20, 8, "Qty", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(35, 8, "Unit Price", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(35, 8, "Total", "1", 1, "C", true, 0, "")
 
 	// Items
 	pdf.SetFont("Helvetica", "", 9)
@@ -106,31 +104,31 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	subtotal, discount, tax, total := db.CalcOrderTotals(orderDetail.Items, orderDetail.Order.DiscountPercent, orderDetail.Order.TaxPercent)
 
 	// Subtotal
-	pdf.CellFormat(135, 7, "Subtotal / المجموع الفرعي:", "", 0, "R", false, 0, "")
-	pdf.CellFormat(35, 7, db.FormatCurrency(subtotal, "DZD"), "1", 1, "R", false, 0, "")
+	pdf.CellFormat(135, 7, "Subtotal:", "", 0, "R", false, 0, "")
+	pdf.CellFormat(35, 7, db.FormatCurrency(subtotal, "USD"), "1", 1, "R", false, 0, "")
 
 	// Discount
 	if orderDetail.Order.DiscountPercent > 0 {
-		pdf.CellFormat(135, 7, fmt.Sprintf("Discount (%d%%) / الخصم:", orderDetail.Order.DiscountPercent), "", 0, "R", false, 0, "")
-		pdf.CellFormat(35, 7, fmt.Sprintf("-%s", db.FormatCurrency(discount, "DZD")), "1", 1, "R", false, 0, "")
+		pdf.CellFormat(135, 7, fmt.Sprintf("Discount (%d%%):", orderDetail.Order.DiscountPercent), "", 0, "R", false, 0, "")
+		pdf.CellFormat(35, 7, fmt.Sprintf("-%s", db.FormatCurrency(discount, "USD")), "1", 1, "R", false, 0, "")
 	}
 
 	// Tax
 	if orderDetail.Order.TaxPercent > 0 {
-		pdf.CellFormat(135, 7, fmt.Sprintf("Tax (%d%%) / الضريبة:", orderDetail.Order.TaxPercent), "", 0, "R", false, 0, "")
-		pdf.CellFormat(35, 7, db.FormatCurrency(tax, "DZD"), "1", 1, "R", false, 0, "")
+		pdf.CellFormat(135, 7, fmt.Sprintf("Tax (%d%%):", orderDetail.Order.TaxPercent), "", 0, "R", false, 0, "")
+		pdf.CellFormat(35, 7, db.FormatCurrency(tax, "USD"), "1", 1, "R", false, 0, "")
 	}
 
 	// Total
 	pdf.SetFont("Helvetica", "B", 12)
-	pdf.CellFormat(135, 8, "Total / الإجمالي:", "", 0, "R", false, 0, "")
-	pdf.CellFormat(35, 8, db.FormatCurrency(total, "DZD"), "1", 1, "R", false, 0, "")
+	pdf.CellFormat(135, 8, "Total:", "", 0, "R", false, 0, "")
+	pdf.CellFormat(35, 8, db.FormatCurrency(total, "USD"), "1", 1, "R", false, 0, "")
 
 	// Notes
 	if orderDetail.Order.Notes != nil && *orderDetail.Order.Notes != "" {
 		pdf.Ln(10)
 		pdf.SetFont("Helvetica", "B", 10)
-		pdf.Cell(40, 6, "Notes / ملاحظات:")
+		pdf.Cell(40, 6, "Notes:")
 		pdf.Ln(6)
 		pdf.SetFont("Helvetica", "", 9)
 		pdf.MultiCell(170, 5, *orderDetail.Order.Notes, "", "L", false)
@@ -165,12 +163,10 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 	pdf.SetAutoPageBreak(true, 20)
 	pdf.AddPage()
 
-	// Header - Company Information (right-aligned for RTL)
+	// Header - Company Information
 	pdf.SetFont("Arial", "B", 16)
 	pdf.SetXY(20, 20)
-	pdf.CellFormat(170, 10, "نظام الفوترة وإدارة الطلبات", "", 1, "R", false, 0, "")
-	pdf.SetFont("Arial", "", 12)
-	pdf.CellFormat(170, 8, "Invoice Management System", "", 1, "R", false, 0, "")
+	pdf.CellFormat(170, 10, "Invoice Management System", "", 1, "L", false, 0, "")
 	pdf.Ln(10)
 
 	// Invoice Information
@@ -179,20 +175,20 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 	pdf.Ln(8)
 
 	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(40, 6, fmt.Sprintf("Issue Date: %s", db.FormatDateArabic(invoiceDetail.Invoice.IssueDate)))
+	pdf.Cell(40, 6, fmt.Sprintf("Issue Date: %s", invoiceDetail.Invoice.IssueDate.Format("2006-01-02")))
 	pdf.Ln(6)
 
 	if invoiceDetail.Invoice.DueDate != nil {
-		pdf.Cell(40, 6, fmt.Sprintf("Due Date: %s", db.FormatDateArabic(*invoiceDetail.Invoice.DueDate)))
+		pdf.Cell(40, 6, fmt.Sprintf("Due Date: %s", invoiceDetail.Invoice.DueDate.Format("2006-01-02")))
 		pdf.Ln(6)
 	}
 
-	pdf.Cell(40, 6, fmt.Sprintf("Status: %s", getInvoiceStatusArabic(invoiceDetail.Invoice.Status)))
+	pdf.Cell(40, 6, fmt.Sprintf("Status: %s", invoiceDetail.Invoice.Status))
 	pdf.Ln(10)
 
 	// Client Information
 	pdf.SetFont("Arial", "B", 12)
-	pdf.Cell(40, 8, "Client Information / معلومات العميل")
+	pdf.Cell(40, 8, "Client Information")
 	pdf.Ln(8)
 
 	pdf.SetFont("Arial", "", 10)
@@ -219,11 +215,11 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 	pdf.SetFont("Arial", "B", 10)
 	pdf.SetFillColor(240, 240, 240)
 
-	// Table headers (right to left for RTL)
-	pdf.CellFormat(80, 8, "الوصف / Description", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(20, 8, "الكمية / Qty", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(35, 8, "سعر الوحدة / Unit Price", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(35, 8, "الإجمالي / Total", "1", 1, "C", true, 0, "")
+	// Table headers
+	pdf.CellFormat(80, 8, "Description", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(20, 8, "Qty", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(35, 8, "Unit Price", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(35, 8, "Total", "1", 1, "C", true, 0, "")
 
 	// Items
 	pdf.SetFont("Arial", "", 9)
@@ -241,13 +237,13 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 	pdf.SetFont("Arial", "B", 10)
 
 	// Subtotal
-	pdf.CellFormat(135, 7, "Subtotal / المجموع الفرعي:", "", 0, "R", false, 0, "")
+	pdf.CellFormat(135, 7, "Subtotal:", "", 0, "R", false, 0, "")
 	pdf.CellFormat(35, 7, db.FormatCurrency(invoiceDetail.Invoice.SubtotalCents, invoiceDetail.Invoice.Currency), "1", 1, "R", false, 0, "")
 
 	// Discount
 	if invoiceDetail.Invoice.DiscountPercent > 0 {
 		discountAmount := (invoiceDetail.Invoice.SubtotalCents * int64(invoiceDetail.Invoice.DiscountPercent)) / 100
-		pdf.CellFormat(135, 7, fmt.Sprintf("Discount (%d%%) / الخصم:", invoiceDetail.Invoice.DiscountPercent), "", 0, "R", false, 0, "")
+		pdf.CellFormat(135, 7, fmt.Sprintf("Discount (%d%%):", invoiceDetail.Invoice.DiscountPercent), "", 0, "R", false, 0, "")
 		pdf.CellFormat(35, 7, fmt.Sprintf("-%s", db.FormatCurrency(discountAmount, invoiceDetail.Invoice.Currency)), "1", 1, "R", false, 0, "")
 	}
 
@@ -259,37 +255,37 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 			taxableAmount -= discountAmount
 		}
 		taxAmount := (taxableAmount * int64(invoiceDetail.Invoice.TaxPercent)) / 100
-		pdf.CellFormat(135, 7, fmt.Sprintf("Tax (%d%%) / الضريبة:", invoiceDetail.Invoice.TaxPercent), "", 0, "R", false, 0, "")
+		pdf.CellFormat(135, 7, fmt.Sprintf("Tax (%d%%):", invoiceDetail.Invoice.TaxPercent), "", 0, "R", false, 0, "")
 		pdf.CellFormat(35, 7, db.FormatCurrency(taxAmount, invoiceDetail.Invoice.Currency), "1", 1, "R", false, 0, "")
 	}
 
 	// Total
 	pdf.SetFont("Arial", "B", 12)
-	pdf.CellFormat(135, 8, "Total / الإجمالي:", "", 0, "R", false, 0, "")
+	pdf.CellFormat(135, 8, "Total:", "", 0, "R", false, 0, "")
 	pdf.CellFormat(35, 8, db.FormatCurrency(invoiceDetail.Invoice.TotalCents, invoiceDetail.Invoice.Currency), "1", 1, "R", false, 0, "")
 
 	// Payment Summary
 	if len(invoiceDetail.Payments) > 0 {
 		pdf.Ln(10)
 		pdf.SetFont("Arial", "B", 10)
-		pdf.Cell(40, 8, "Payments / المدفوعات")
+		pdf.Cell(40, 8, "Payments")
 		pdf.Ln(8)
 
 		pdf.SetFont("Arial", "", 9)
 		for _, payment := range invoiceDetail.Payments {
 			pdf.Cell(40, 6, fmt.Sprintf("%s: %s (%s)",
-				db.FormatDateArabic(payment.PaidAt),
+				payment.PaidAt.Format("2006-01-02"),
 				db.FormatCurrency(payment.AmountCents, invoiceDetail.Invoice.Currency),
-				getPaymentMethodArabic(payment.Method)))
+				payment.Method))
 			pdf.Ln(6)
 		}
 
 		pdf.Ln(3)
 		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(135, 7, "Paid Amount / المبلغ المدفوع:", "", 0, "R", false, 0, "")
+		pdf.CellFormat(135, 7, "Paid Amount:", "", 0, "R", false, 0, "")
 		pdf.CellFormat(35, 7, db.FormatCurrency(invoiceDetail.PaidCents, invoiceDetail.Invoice.Currency), "1", 1, "R", false, 0, "")
 
-		pdf.CellFormat(135, 7, "Balance / الرصيد المتبقي:", "", 0, "R", false, 0, "")
+		pdf.CellFormat(135, 7, "Balance:", "", 0, "R", false, 0, "")
 		pdf.CellFormat(35, 7, db.FormatCurrency(invoiceDetail.BalanceCents, invoiceDetail.Invoice.Currency), "1", 1, "R", false, 0, "")
 	}
 
@@ -297,7 +293,7 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 	if invoiceDetail.Invoice.Notes != nil && *invoiceDetail.Invoice.Notes != "" {
 		pdf.Ln(10)
 		pdf.SetFont("Arial", "B", 10)
-		pdf.Cell(40, 6, "Notes / ملاحظات:")
+		pdf.Cell(40, 6, "Notes:")
 		pdf.Ln(6)
 		pdf.SetFont("Arial", "", 9)
 		pdf.MultiCell(170, 5, *invoiceDetail.Invoice.Notes, "", "L", false)
@@ -306,8 +302,8 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 	// Footer with signature area
 	pdf.Ln(15)
 	pdf.SetFont("Arial", "", 9)
-	pdf.Cell(85, 10, "Customer Signature / توقيع العميل")
-	pdf.Cell(85, 10, "Company Signature / توقيع الشركة")
+	pdf.Cell(85, 10, "Customer Signature")
+	pdf.Cell(85, 10, "Company Signature")
 	pdf.Ln(20)
 
 	pdf.SetFont("Arial", "I", 8)
@@ -320,51 +316,4 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
 	}
 	return buf.Bytes(), nil
-}
-
-// Helper functions for Arabic translations
-
-func getOrderStatusArabic(status string) string {
-	switch status {
-	case db.OrderStatusPending:
-		return "قيد المعالجة / Pending"
-	case db.OrderStatusConfirmed:
-		return "مؤكد / Confirmed"
-	case db.OrderStatusCompleted:
-		return "مكتمل / Completed"
-	case db.OrderStatusCanceled:
-		return "ملغي / Canceled"
-	default:
-		return status
-	}
-}
-
-func getInvoiceStatusArabic(status string) string {
-	switch status {
-	case db.InvoiceStatusDraft:
-		return "مسودة / Draft"
-	case db.InvoiceStatusIssued:
-		return "مصدّرة / Issued"
-	case db.InvoiceStatusPaid:
-		return "مدفوعة / Paid"
-	case db.InvoiceStatusCanceled:
-		return "ملغاة / Canceled"
-	default:
-		return status
-	}
-}
-
-func getPaymentMethodArabic(method string) string {
-	switch method {
-	case db.PaymentMethodCash:
-		return "نقداً / Cash"
-	case db.PaymentMethodCard:
-		return "بطاقة / Card"
-	case db.PaymentMethodTransfer:
-		return "تحويل / Transfer"
-	case db.PaymentMethodOther:
-		return "أخرى / Other"
-	default:
-		return method
-	}
 }
