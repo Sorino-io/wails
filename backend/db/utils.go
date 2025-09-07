@@ -75,16 +75,16 @@ func FormatCents(cents int64) string {
 // FormatCurrency formats cents with currency symbol
 func FormatCurrency(cents int64, currency string) string {
 	amount := FormatCents(cents)
-	switch currency {
-	case "DZD":
-		return fmt.Sprintf("%s د.ج", amount)
-	case "USD":
-		return fmt.Sprintf("$%s", amount)
-	case "EUR":
-		return fmt.Sprintf("€%s", amount)
-	default:
-		return fmt.Sprintf("%s %s", amount, currency)
-	}
+	// switch currency {
+	// case "DZD":
+	return fmt.Sprintf("%s DZD", amount)
+	// case "USD":
+	// 	return fmt.Sprintf("$%s", amount)
+	// case "EUR":
+	// 	return fmt.Sprintf("€%s", amount)
+	// default:
+	// 	return fmt.Sprintf("%s %s", amount, currency)
+	// }
 }
 
 // ParseCentsFromFloat converts float to cents (e.g., 123.45 -> 12345)

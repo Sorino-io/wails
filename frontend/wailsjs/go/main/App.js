@@ -6,10 +6,6 @@ export function CreateClient(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateClient'](arg1, arg2, arg3, arg4);
 }
 
-export function CreateInvoice(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['CreateInvoice'](arg1, arg2, arg3, arg4, arg5);
-}
-
 export function CreateOrder(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['CreateOrder'](arg1, arg2, arg3, arg4, arg5);
 }
@@ -20,10 +16,6 @@ export function CreateProduct(arg1, arg2, arg3, arg4) {
 
 export function DeleteOrder(arg1) {
   return window['go']['main']['App']['DeleteOrder'](arg1);
-}
-
-export function ExportInvoicePDF(arg1) {
-  return window['go']['main']['App']['ExportInvoicePDF'](arg1);
 }
 
 export function ExportOrderPDF(arg1) {
@@ -40,14 +32,6 @@ export function GetClients(arg1, arg2, arg3) {
 
 export function GetDashboardMetrics(arg1) {
   return window['go']['main']['App']['GetDashboardMetrics'](arg1);
-}
-
-export function GetInvoice(arg1) {
-  return window['go']['main']['App']['GetInvoice'](arg1);
-}
-
-export function GetInvoices(arg1, arg2) {
-  return window['go']['main']['App']['GetInvoices'](arg1, arg2);
 }
 
 export function GetOrder(arg1) {

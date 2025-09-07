@@ -769,7 +769,7 @@ const editOrder = async (order: any) => {
       sku_snapshot: it.sku_snapshot || '',
       qty: it.qty,
       unit_price: it.unit_price_cents / 100,
-      currency: it.currency || 'USD',
+      currency: it.currency || 'DZD',
       productSearch: it.name_snapshot
     }))
 

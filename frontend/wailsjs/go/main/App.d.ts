@@ -4,15 +4,11 @@ import {db} from '../models';
 
 export function CreateClient(arg1:string,arg2:string,arg3:string,arg4:string):Promise<db.Client>;
 
-export function CreateInvoice(arg1:number,arg2:string,arg3:number,arg4:number,arg5:Array<Record<string, any>>):Promise<db.Invoice>;
-
 export function CreateOrder(arg1:number,arg2:string,arg3:number,arg4:number,arg5:Array<Record<string, any>>):Promise<db.Order>;
 
 export function CreateProduct(arg1:string,arg2:string,arg3:number,arg4:string):Promise<db.Product>;
 
 export function DeleteOrder(arg1:number):Promise<void>;
-
-export function ExportInvoicePDF(arg1:number):Promise<Array<number>>;
 
 export function ExportOrderPDF(arg1:number):Promise<Array<number>>;
 
@@ -21,10 +17,6 @@ export function GetClient(arg1:number):Promise<db.Client>;
 export function GetClients(arg1:string,arg2:number,arg3:number):Promise<db.PaginatedResult_myproject_backend_db_Client_>;
 
 export function GetDashboardMetrics(arg1:string):Promise<db.DashboardData>;
-
-export function GetInvoice(arg1:number):Promise<db.InvoiceDetail>;
-
-export function GetInvoices(arg1:number,arg2:number):Promise<db.PaginatedResult_myproject_backend_db_InvoiceDetail_>;
 
 export function GetOrder(arg1:number):Promise<db.OrderDetail>;
 

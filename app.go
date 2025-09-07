@@ -24,8 +24,6 @@ type App struct {
 	productService *services.ProductService
 	orderService   *services.OrderService
 	orderPDF       *pdf.OrderPDFGenerator
-	invoicePDF     *pdf.InvoicePDFGenerator
-	invoiceService *services.InvoiceService
 	amiriFont      embed.FS
 }
 
@@ -82,13 +80,10 @@ func (a *App) startup(ctx context.Context) {
 	a.clientService = services.NewClientService(a.repo)
 	a.productService = services.NewProductService(a.repo)
 	a.orderService = services.NewOrderService(a.repo)
-	// Initialize invoice service
-	a.invoiceService = services.NewInvoiceService(a.repo)
 	log.Printf("✓ Services initialized successfully!")
 
 	// Initialize PDF generators
 	a.orderPDF = pdf.NewOrderPDFGenerator()
-	a.invoicePDF = pdf.NewInvoicePDFGenerator()
 	log.Printf("✓ PDF generators initialized successfully!")
 
 	log.Printf("🎉 Application startup completed successfully!")
@@ -306,86 +301,6 @@ func (a *App) GetOrders(query string, clientID int, status string, limit, offset
 		Data:  orders,
 		Total: total,
 	}, nil
-}
-
-// Invoice operations
-
-// CreateInvoice creates a new invoice
-func (a *App) CreateInvoice(clientID int, notes string, discountPercent, taxPercent int, items []map[string]interface{}) (*db.Invoice, error) {
-	var notesPtr *string
-	if notes != "" {
-		notesPtr = &notes
-	}
-
-	// Convert items
-	invoiceItems := make([]db.InvoiceItemDraft, len(items))
-	for i, it := range items {
-		var productID *int64
-		if id, ok := it["product_id"].(float64); ok && id > 0 {
-			idInt := int64(id)
-			productID = &idInt
-		}
-		nameSnapshot, _ := it["name_snapshot"].(string)
-		qty, _ := it["qty"].(float64)
-		unitPriceCents, _ := it["unit_price_cents"].(float64)
-		currency, _ := it["currency"].(string)
-		if currency == "" {
-			currency = "DZD"
-		}
-		invoiceItems[i] = db.InvoiceItemDraft{
-			ProductID:      productID,
-			NameSnapshot:   nameSnapshot,
-			SKUSnapshot:    nil,
-			Qty:            int(qty),
-			UnitPriceCents: int64(unitPriceCents),
-			Currency:       currency,
-		}
-	}
-
-	draft := db.InvoiceDraft{
-		ClientID:        int64(clientID),
-		Notes:           notesPtr,
-		DiscountPercent: discountPercent,
-		TaxPercent:      taxPercent,
-		Items:           invoiceItems,
-		Currency:        "DZD",
-	}
-
-	return a.invoiceService.Create(a.ctx, draft)
-}
-
-// GetInvoices lists invoices
-func (a *App) GetInvoices(limit, offset int) (*db.PaginatedResult[db.InvoiceDetail], error) {
-	invoices, total, err := a.invoiceService.List(a.ctx, limit, offset)
-	if err != nil {
-		return nil, err
-	}
-	return &db.PaginatedResult[db.InvoiceDetail]{
-		Data:  invoices,
-		Total: total,
-	}, nil
-}
-
-// GetInvoice retrieves an invoice by id
-func (a *App) GetInvoice(id int) (*db.InvoiceDetail, error) {
-	return a.invoiceService.Get(a.ctx, int64(id))
-}
-
-// ExportInvoicePDF generates invoice PDF
-func (a *App) ExportInvoicePDF(invoiceID int) ([]byte, error) {
-	invoiceDetail, err := a.invoiceService.Get(a.ctx, int64(invoiceID))
-	if err != nil {
-		return nil, err
-	}
-	bytes, err := a.invoicePDF.GenerateInvoicePDF(*invoiceDetail)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("ExportInvoicePDF: invoiceID=%d items=%d bytes=%d\n", invoiceID, len(invoiceDetail.Items), len(bytes))
-	if len(bytes) == 0 {
-		return nil, fmt.Errorf("generated invoice PDF is empty for invoice %d", invoiceID)
-	}
-	return bytes, nil
 }
 
 // GetOrder retrieves an order by ID
