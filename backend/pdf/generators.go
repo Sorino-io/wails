@@ -6,7 +6,8 @@ import (
 	"myproject/backend/db"
 	"time"
 
-	"github.com/jung-kurt/gofpdf/v2"
+	"github.com/01walid/goarabic"
+	"github.com/go-pdf/fpdf"
 )
 
 // OrderPDFGenerator generates PDF documents for orders
@@ -19,125 +20,141 @@ func NewOrderPDFGenerator() *OrderPDFGenerator {
 
 // GenerateOrderPDF generates a PDF for the given order
 func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte, error) {
-	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(20, 20, 20)
 	pdf.SetAutoPageBreak(true, 20)
 	pdf.AddPage()
 
-	// Add Arabic font support (if available)
-	// For now, use core Helvetica font to avoid missing-font issues
-	pdf.SetFont("Helvetica", "B", 16)
+	// Register Arabic-supporting font (must exist at this path)
+	fontPath := "/frontend/src/assets/fonts/frontendsrcassetsfontsAmiri-Regular.ttf"
+	pdf.AddUTF8Font("Amiri", "", fontPath)
+	pdf.SetFont("Amiri", "", 16)
 
-	// Header - Company Information
-	pdf.SetXY(20, 20)
-	pdf.CellFormat(170, 10, "Order Management System", "", 1, "L", false, 0, "")
-	pdf.Ln(10)
-
-	// Order Information
-	pdf.SetFont("Helvetica", "B", 14)
-	pdf.Cell(40, 10, fmt.Sprintf("Order #: %s", orderDetail.Order.OrderNumber))
-	pdf.Ln(8)
-
-	pdf.SetFont("Helvetica", "", 10)
-	pdf.Cell(40, 6, fmt.Sprintf("Issue Date: %s", orderDetail.Order.IssueDate.Format("2006-01-02")))
-	pdf.Ln(6)
-
-	if orderDetail.Order.DueDate != nil {
-		pdf.Cell(40, 6, fmt.Sprintf("Due Date: %s", orderDetail.Order.DueDate.Format("2006-01-02")))
-		pdf.Ln(6)
+	// Helper for Arabic text (RTL)
+	arabicCell := func(w, h float64, txt string, borderStr string, ln int, fill bool, link int) {
+		txt = goarabic.Reverse(goarabic.ToGlyph(txt))
+		pdf.CellFormat(w, h, txt, borderStr, ln, "R", fill, link, "")
+	}
+	ltrCell := func(w, h float64, txt string, borderStr string, ln int, fill bool, link int) {
+		pdf.CellFormat(w, h, txt, borderStr, ln, "L", fill, link, "")
 	}
 
-	pdf.Cell(40, 6, fmt.Sprintf("Status: %s", orderDetail.Order.Status))
-	pdf.Ln(10)
+	arabicLabelLtrValueCell := func(w, h float64, rtlLabel, ltrValue string) {
+		processedRtlLabel := goarabic.Reverse(goarabic.ToGlyph(rtlLabel))
+		rtlLabelWidth := pdf.GetStringWidth(processedRtlLabel)
+		ltrValueWidth := pdf.GetStringWidth(ltrValue)
+
+		x, y := pdf.GetXY()
+
+		// Calculate start of text for right alignment
+		textStartX := x + w - rtlLabelWidth - ltrValueWidth
+
+		// Set position and draw LTR value
+		pdf.SetXY(textStartX, y)
+		pdf.CellFormat(ltrValueWidth, h, ltrValue, "", 0, "L", false, 0, "")
+
+		// Set position and draw RTL label
+		pdf.SetXY(textStartX+ltrValueWidth, y)
+		pdf.CellFormat(rtlLabelWidth, h, processedRtlLabel, "", 0, "L", false, 0, "")
+
+		// Move cursor to next line, preserving X
+		pdf.SetXY(x, y+h)
+	}
+
+	// Header
+	pdf.SetXY(120, 20)
+	arabicCell(70, 10, "مصنع البركة للأنواني", "", 1, false, 0)
+
+	// Client and Order Information
+	y := pdf.GetY()
+	if y < 35 {
+		y = 35
+	}
 
 	// Client Information
-	pdf.SetFont("Helvetica", "B", 12)
-	pdf.Cell(40, 8, "Client Information")
-	pdf.Ln(8)
-
-	pdf.SetFont("Helvetica", "", 10)
-	pdf.Cell(40, 6, fmt.Sprintf("Name: %s", orderDetail.Client.Name))
-	pdf.Ln(6)
-
+	pdf.SetXY(20, y)
+	pdf.SetFont("Amiri", "", 12)
+	arabicCell(70, 8, "معلومات العميل:", "", 2, false, 0)
+	pdf.SetFont("Amiri", "", 10)
+	arabicCell(70, 6, "الاسم: "+orderDetail.Client.Name, "", 2, false, 0)
 	if orderDetail.Client.Phone != nil {
-		pdf.Cell(40, 6, fmt.Sprintf("Phone: %s", *orderDetail.Client.Phone))
-		pdf.Ln(6)
+		arabicLabelLtrValueCell(70, 6, "الهاتف: ", *orderDetail.Client.Phone)
 	}
-
 	if orderDetail.Client.Email != nil {
-		pdf.Cell(40, 6, fmt.Sprintf("Email: %s", *orderDetail.Client.Email))
-		pdf.Ln(6)
+		arabicLabelLtrValueCell(70, 6, "البريد الإلكتروني: ", *orderDetail.Client.Email)
 	}
-
 	if orderDetail.Client.Address != nil {
-		pdf.Cell(40, 6, fmt.Sprintf("Address: %s", *orderDetail.Client.Address))
-		pdf.Ln(6)
+		arabicCell(70, 6, "العنوان: "+*orderDetail.Client.Address, "", 2, false, 0)
+	}
+	yClient := pdf.GetY()
+
+	// Order Information (fully right-aligned)
+	pdf.SetXY(120, y)
+	pdf.SetFont("Amiri", "", 12)
+	arabicLabelLtrValueCell(70, 8, "رقم الطلب: ", orderDetail.Order.OrderNumber)
+	arabicLabelLtrValueCell(70, 7, "تاريخ الإصدار: ", orderDetail.Order.IssueDate.Format("2006-01-02"))
+	if orderDetail.Order.DueDate != nil {
+		arabicLabelLtrValueCell(70, 7, "تاريخ الاستحقاق: ", orderDetail.Order.DueDate.Format("2006-01-02"))
+	}
+	arabicLabelLtrValueCell(70, 7, "الحالة: ", orderDetail.Order.Status)
+	yOrder := pdf.GetY()
+
+	if yClient > yOrder {
+		pdf.SetY(yClient)
+	} else {
+		pdf.SetY(yOrder)
 	}
 	pdf.Ln(5)
 
-	// Items Table Header
-	pdf.SetFont("Helvetica", "B", 10)
+	// Table headers (RTL)
+	pdf.SetFont("Amiri", "", 10)
 	pdf.SetFillColor(240, 240, 240)
+	arabicCell(35, 8, "الإجمالي", "1", 0, true, 0)
+	arabicCell(35, 8, "سعر الوحدة", "1", 0, true, 0)
+	arabicCell(20, 8, "الكمية", "1", 0, true, 0)
+	arabicCell(80, 8, "الوصف", "1", 1, true, 0)
 
-	// Table headers
-	pdf.CellFormat(80, 8, "Description", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(20, 8, "Qty", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(35, 8, "Unit Price", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(35, 8, "Total", "1", 1, "C", true, 0, "")
-
-	// Items
-	pdf.SetFont("Helvetica", "", 9)
+	// Items (RTL)
+	pdf.SetFont("Amiri", "", 9)
 	pdf.SetFillColor(255, 255, 255)
-
 	for _, item := range orderDetail.Items {
-		pdf.CellFormat(80, 7, item.NameSnapshot, "1", 0, "L", false, 0, "")
-		pdf.CellFormat(20, 7, fmt.Sprintf("%d", item.Qty), "1", 0, "C", false, 0, "")
-		pdf.CellFormat(35, 7, db.FormatCurrency(item.UnitPriceCents, item.Currency), "1", 0, "R", false, 0, "")
-		pdf.CellFormat(35, 7, db.FormatCurrency(item.TotalCents, item.Currency), "1", 1, "R", false, 0, "")
+		ltrCell(35, 7, db.FormatCurrency(item.TotalCents, item.Currency), "1", 0, false, 0)
+		ltrCell(35, 7, db.FormatCurrency(item.UnitPriceCents, item.Currency), "1", 0, false, 0)
+		ltrCell(20, 7, fmt.Sprintf("%d", item.Qty), "1", 0, false, 0)
+		arabicCell(80, 7, item.NameSnapshot, "1", 1, false, 0)
 	}
 
-	// Totals
+	// Totals (RTL)
 	pdf.Ln(5)
-	pdf.SetFont("Helvetica", "B", 10)
-
-	// Calculate totals
+	pdf.SetFont("Amiri", "", 10)
 	subtotal, discount, tax, total := db.CalcOrderTotals(orderDetail.Items, orderDetail.Order.DiscountPercent, orderDetail.Order.TaxPercent)
-
-	// Subtotal
-	pdf.CellFormat(135, 7, "Subtotal:", "", 0, "R", false, 0, "")
-	pdf.CellFormat(35, 7, db.FormatCurrency(subtotal, "USD"), "1", 1, "R", false, 0, "")
-
-	// Discount
+	ltrCell(35, 7, db.FormatCurrency(subtotal, "USD"), "1", 0, false, 0)
+	arabicCell(35, 7, "المجموع:", "", 1, false, 0)
 	if orderDetail.Order.DiscountPercent > 0 {
-		pdf.CellFormat(135, 7, fmt.Sprintf("Discount (%d%%):", orderDetail.Order.DiscountPercent), "", 0, "R", false, 0, "")
-		pdf.CellFormat(35, 7, fmt.Sprintf("-%s", db.FormatCurrency(discount, "USD")), "1", 1, "R", false, 0, "")
+		ltrCell(35, 7, fmt.Sprintf("-%s", db.FormatCurrency(discount, "USD")), "1", 0, false, 0)
+		arabicCell(35, 7, fmt.Sprintf("الخصم (%d%%):", orderDetail.Order.DiscountPercent), "", 1, false, 0)
 	}
-
-	// Tax
 	if orderDetail.Order.TaxPercent > 0 {
-		pdf.CellFormat(135, 7, fmt.Sprintf("Tax (%d%%):", orderDetail.Order.TaxPercent), "", 0, "R", false, 0, "")
-		pdf.CellFormat(35, 7, db.FormatCurrency(tax, "USD"), "1", 1, "R", false, 0, "")
+		ltrCell(35, 7, db.FormatCurrency(tax, "USD"), "1", 0, false, 0)
+		arabicCell(35, 7, fmt.Sprintf("الضريبة (%d%%):", orderDetail.Order.TaxPercent), "", 1, false, 0)
 	}
+	pdf.SetFont("Amiri", "", 12)
+	ltrCell(35, 8, db.FormatCurrency(total, "USD"), "1", 0, false, 0)
+	arabicCell(35, 8, "الإجمالي:", "", 1, false, 0)
 
-	// Total
-	pdf.SetFont("Helvetica", "B", 12)
-	pdf.CellFormat(135, 8, "Total:", "", 0, "R", false, 0, "")
-	pdf.CellFormat(35, 8, db.FormatCurrency(total, "USD"), "1", 1, "R", false, 0, "")
-
-	// Notes
+	// Notes (RTL)
 	if orderDetail.Order.Notes != nil && *orderDetail.Order.Notes != "" {
 		pdf.Ln(10)
-		pdf.SetFont("Helvetica", "B", 10)
-		pdf.Cell(40, 6, "Notes:")
-		pdf.Ln(6)
-		pdf.SetFont("Helvetica", "", 9)
-		pdf.MultiCell(170, 5, *orderDetail.Order.Notes, "", "L", false)
+		pdf.SetFont("Amiri", "", 10)
+		arabicCell(40, 6, "ملاحظات:", "", 1, false, 0)
+		pdf.SetFont("Amiri", "", 9)
+		arabicCell(170, 5, *orderDetail.Order.Notes, "", 1, false, 0)
 	}
 
-	// Footer
+	// Footer: label RTL, date LTR
 	pdf.Ln(15)
-	pdf.SetFont("Helvetica", "I", 8)
-	pdf.Cell(170, 5, fmt.Sprintf("Generated on %s", time.Now().Format("02/01/2006 15:04")))
+	pdf.SetFont("Amiri", "", 8)
+	arabicLabelLtrValueCell(170, 5, "تم الإنشاء في: ", time.Now().Format("02/01/2006 15:04"))
 
 	// Return PDF bytes
 	var buf bytes.Buffer
@@ -158,11 +175,15 @@ func NewInvoicePDFGenerator() *InvoicePDFGenerator {
 
 // GenerateInvoicePDF generates a PDF for the given invoice
 func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail) ([]byte, error) {
-	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(20, 20, 20)
 	pdf.SetAutoPageBreak(true, 20)
 	pdf.AddPage()
 
+	// Register Arabic-supporting font (must exist at this path)
+	fontPath := "frontendsrcassetsfontsAmiri-Regular.ttf"
+	pdf.AddUTF8Font("Amiri", "", fontPath)
+	pdf.SetFont("Amiri", "", 16)
 	// Header - Company Information
 	pdf.SetFont("Arial", "B", 16)
 	pdf.SetXY(20, 20)
@@ -246,23 +267,6 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 		pdf.CellFormat(135, 7, fmt.Sprintf("Discount (%d%%):", invoiceDetail.Invoice.DiscountPercent), "", 0, "R", false, 0, "")
 		pdf.CellFormat(35, 7, fmt.Sprintf("-%s", db.FormatCurrency(discountAmount, invoiceDetail.Invoice.Currency)), "1", 1, "R", false, 0, "")
 	}
-
-	// Tax
-	if invoiceDetail.Invoice.TaxPercent > 0 {
-		taxableAmount := invoiceDetail.Invoice.SubtotalCents
-		if invoiceDetail.Invoice.DiscountPercent > 0 {
-			discountAmount := (invoiceDetail.Invoice.SubtotalCents * int64(invoiceDetail.Invoice.DiscountPercent)) / 100
-			taxableAmount -= discountAmount
-		}
-		taxAmount := (taxableAmount * int64(invoiceDetail.Invoice.TaxPercent)) / 100
-		pdf.CellFormat(135, 7, fmt.Sprintf("Tax (%d%%):", invoiceDetail.Invoice.TaxPercent), "", 0, "R", false, 0, "")
-		pdf.CellFormat(35, 7, db.FormatCurrency(taxAmount, invoiceDetail.Invoice.Currency), "1", 1, "R", false, 0, "")
-	}
-
-	// Total
-	pdf.SetFont("Arial", "B", 12)
-	pdf.CellFormat(135, 8, "Total:", "", 0, "R", false, 0, "")
-	pdf.CellFormat(35, 8, db.FormatCurrency(invoiceDetail.Invoice.TotalCents, invoiceDetail.Invoice.Currency), "1", 1, "R", false, 0, "")
 
 	// Payment Summary
 	if len(invoiceDetail.Payments) > 0 {

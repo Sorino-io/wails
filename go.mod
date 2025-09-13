@@ -5,7 +5,8 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
-	github.com/jung-kurt/gofpdf/v2 v2.17.2
+	github.com/01walid/goarabic v0.0.1
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/wailsapp/wails/v2 v2.10.1
 	modernc.org/sqlite v1.38.2
 )
