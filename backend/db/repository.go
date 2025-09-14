@@ -235,11 +235,11 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 
 	// Create order
 	orderQuery := `
-		INSERT INTO "order" (order_number, client_id, status, notes, discount_percent, tax_percent, issue_date, due_date, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		INSERT INTO "order" (order_number, client_id, status, notes, discount_percent, issue_date, due_date, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`
 	result, err := tx.ExecContext(ctx, orderQuery, orderNumber, draft.ClientID, OrderStatusPending,
-		draft.Notes, draft.DiscountPercent, draft.TaxPercent, issueDate, draft.DueDate)
+		draft.Notes, draft.DiscountPercent, issueDate, draft.DueDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
@@ -253,11 +253,11 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 	for _, item := range draft.Items {
 		totalCents := int64(item.Qty) * item.UnitPriceCents
 		itemQuery := `
-			INSERT INTO order_item (order_id, product_id, name_snapshot, sku_snapshot, qty, unit_price_cents, currency, total_cents)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO order_item (order_id, product_id, name_snapshot, sku_snapshot, qty, unit_price_cents, discount_percent, currency, total_cents)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		_, err := tx.ExecContext(ctx, itemQuery, orderID, item.ProductID, item.NameSnapshot,
-			item.SKUSnapshot, item.Qty, item.UnitPriceCents, item.Currency, totalCents)
+			item.SKUSnapshot, item.Qty, item.UnitPriceCents, item.DiscountPercent, item.Currency, totalCents)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create order item: %w", err)
 		}
@@ -276,7 +276,6 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		Status:          OrderStatusPending,
 		Notes:           draft.Notes,
 		DiscountPercent: draft.DiscountPercent,
-		TaxPercent:      draft.TaxPercent,
 		IssueDate:       issueDate,
 		DueDate:         draft.DueDate,
 		CreatedAt:       time.Now(),
@@ -321,19 +320,25 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 		return nil, 0, fmt.Errorf("failed to get orders count: %w", err)
 	}
 
+	// Determine sort order
+	sortClause := "ORDER BY o.id DESC"
+	if filters.Sort != nil && *filters.Sort != "" {
+		sortClause = fmt.Sprintf("ORDER BY %s", *filters.Sort)
+	}
+
 	// Get orders with details
 	query := fmt.Sprintf(`
-		SELECT 
-			o.id, o.order_number, o.client_id, o.status, o.notes, 
-			o.discount_percent, o.tax_percent, o.issue_date, o.due_date,
-			o.created_at, o.updated_at,
-			c.id, c.name, c.phone, c.email, c.address, c.created_at, c.updated_at
-		FROM "order" o
-		JOIN client c ON o.client_id = c.id
-		%s
-		ORDER BY o.created_at DESC
-		LIMIT ? OFFSET ?
-	`, whereClause)
+			SELECT 
+				o.id, o.order_number, o.client_id, o.status, o.notes, 
+				o.discount_percent, o.issue_date, o.due_date,
+				o.created_at, o.updated_at,
+				c.id, c.name, c.phone, c.email, c.address, c.created_at, c.updated_at
+			FROM "order" o
+			JOIN client c ON o.client_id = c.id
+			%s
+			%s
+			LIMIT ? OFFSET ?
+		`, whereClause, sortClause)
 
 	// Add limit and offset to args
 	queryArgs := append(args, limit, offset)
@@ -349,7 +354,7 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 		var order OrderDetail
 		err := rows.Scan(
 			&order.Order.ID, &order.Order.OrderNumber, &order.Order.ClientID, &order.Order.Status,
-			&order.Order.Notes, &order.Order.DiscountPercent, &order.Order.TaxPercent,
+			&order.Order.Notes, &order.Order.DiscountPercent,
 			&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt,
 			&order.Client.ID, &order.Client.Name, &order.Client.Phone, &order.Client.Email,
 			&order.Client.Address, &order.Client.CreatedAt, &order.Client.UpdatedAt,
@@ -366,15 +371,11 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 		order.Items = items
 
 		// Calculate totals
-		order.SubtotalCents = 0
-		for _, item := range items {
-			order.SubtotalCents += item.TotalCents
-		}
-
-		order.DiscountCents = order.SubtotalCents * int64(order.Order.DiscountPercent) / 100
-		afterDiscount := order.SubtotalCents - order.DiscountCents
-		order.TaxCents = afterDiscount * int64(order.Order.TaxPercent) / 100
-		order.TotalCents = afterDiscount + order.TaxCents
+		subtotal, discount, _, total := CalcOrderTotals(items, order.Order.DiscountPercent, 0)
+		order.SubtotalCents = subtotal
+		order.DiscountCents = discount
+		order.TaxCents = 0
+		order.TotalCents = total
 
 		orders = append(orders, order)
 	}
@@ -387,7 +388,7 @@ func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail
 	query := `
 		SELECT 
 			o.id, o.order_number, o.client_id, o.status, o.notes, 
-			o.discount_percent, o.tax_percent, o.issue_date, o.due_date,
+			o.discount_percent, o.issue_date, o.due_date,
 			o.created_at, o.updated_at,
 			c.id, c.name, c.phone, c.email, c.address, c.created_at, c.updated_at
 		FROM "order" o
@@ -398,7 +399,7 @@ func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail
 	var order OrderDetail
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&order.Order.ID, &order.Order.OrderNumber, &order.Order.ClientID, &order.Order.Status,
-		&order.Order.Notes, &order.Order.DiscountPercent, &order.Order.TaxPercent,
+		&order.Order.Notes, &order.Order.DiscountPercent,
 		&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt,
 		&order.Client.ID, &order.Client.Name, &order.Client.Phone, &order.Client.Email,
 		&order.Client.Address, &order.Client.CreatedAt, &order.Client.UpdatedAt,
@@ -418,15 +419,11 @@ func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail
 	order.Items = items
 
 	// Calculate totals
-	order.SubtotalCents = 0
-	for _, item := range items {
-		order.SubtotalCents += item.TotalCents
-	}
-
-	order.DiscountCents = order.SubtotalCents * int64(order.Order.DiscountPercent) / 100
-	afterDiscount := order.SubtotalCents - order.DiscountCents
-	order.TaxCents = afterDiscount * int64(order.Order.TaxPercent) / 100
-	order.TotalCents = afterDiscount + order.TaxCents
+	subtotal, discount, _, total := CalcOrderTotals(items, order.Order.DiscountPercent, 0)
+	order.SubtotalCents = subtotal
+	order.DiscountCents = discount
+	order.TaxCents = 0
+	order.TotalCents = total
 
 	return &order, nil
 }
@@ -642,11 +639,6 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 		args = append(args, *update.DiscountPercent)
 	}
 
-	if update.TaxPercent != nil {
-		setParts = append(setParts, "tax_percent = ?")
-		args = append(args, *update.TaxPercent)
-	}
-
 	if update.DueDate != nil {
 		setParts = append(setParts, "due_date = ?")
 		args = append(args, *update.DueDate)
@@ -681,11 +673,11 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 		for _, item := range update.Items {
 			totalCents := int64(item.Qty) * item.UnitPriceCents
 			itemQuery := `
-				INSERT INTO order_item (order_id, product_id, name_snapshot, sku_snapshot, qty, unit_price_cents, currency, total_cents)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				INSERT INTO order_item (order_id, product_id, name_snapshot, sku_snapshot, qty, unit_price_cents, discount_percent, currency, total_cents)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`
 			_, err := tx.ExecContext(ctx, itemQuery, update.ID, item.ProductID, item.NameSnapshot,
-				item.SKUSnapshot, item.Qty, item.UnitPriceCents, item.Currency, totalCents)
+				item.SKUSnapshot, item.Qty, item.UnitPriceCents, item.DiscountPercent, item.Currency, totalCents)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create order item: %w", err)
 			}
@@ -699,10 +691,10 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 
 	// Get updated order
 	var order Order
-	query := `SELECT id, order_number, client_id, status, notes, discount_percent, tax_percent, issue_date, due_date, created_at, updated_at FROM "order" WHERE id = ?`
+	query := `SELECT id, order_number, client_id, status, notes, discount_percent, issue_date, due_date, created_at, updated_at FROM "order" WHERE id = ?`
 	err = r.db.QueryRowContext(ctx, query, update.ID).Scan(
 		&order.ID, &order.OrderNumber, &order.ClientID, &order.Status, &order.Notes,
-		&order.DiscountPercent, &order.TaxPercent, &order.IssueDate, &order.DueDate,
+		&order.DiscountPercent, &order.IssueDate, &order.DueDate,
 		&order.CreatedAt, &order.UpdatedAt,
 	)
 	if err != nil {
@@ -715,7 +707,7 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 // getOrderItems is a helper function to get items for an order
 func (r *Repository) getOrderItems(ctx context.Context, orderID int64) ([]OrderItem, error) {
 	query := `
-		SELECT id, order_id, product_id, name_snapshot, sku_snapshot, qty, unit_price_cents, currency, total_cents
+		SELECT id, order_id, product_id, name_snapshot, sku_snapshot, qty, unit_price_cents, discount_percent, currency, total_cents
 		FROM order_item 
 		WHERE order_id = ?
 		ORDER BY id
@@ -732,7 +724,7 @@ func (r *Repository) getOrderItems(ctx context.Context, orderID int64) ([]OrderI
 		var item OrderItem
 		err := rows.Scan(
 			&item.ID, &item.OrderID, &item.ProductID, &item.NameSnapshot,
-			&item.SKUSnapshot, &item.Qty, &item.UnitPriceCents, &item.Currency, &item.TotalCents,
+			&item.SKUSnapshot, &item.Qty, &item.UnitPriceCents, &item.DiscountPercent, &item.Currency, &item.TotalCents,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan order item: %w", err)

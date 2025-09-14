@@ -109,38 +109,38 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	// Table headers (RTL)
 	pdf.SetFont("Amiri", "", 10)
 	pdf.SetFillColor(240, 240, 240)
-	arabicCell(35, 8, "الإجمالي", "1", 0, true, 0)
-	arabicCell(35, 8, "سعر الوحدة", "1", 0, true, 0)
+	arabicCell(30, 8, "الإجمالي", "1", 0, true, 0)
+	arabicCell(30, 8, "الخصم", "1", 0, true, 0)
+	arabicCell(30, 8, "سعر الوحدة", "1", 0, true, 0)
 	arabicCell(20, 8, "الكمية", "1", 0, true, 0)
-	arabicCell(80, 8, "الوصف", "1", 1, true, 0)
+	arabicCell(60, 8, "الوصف", "1", 1, true, 0)
 
 	// Items (RTL)
 	pdf.SetFont("Amiri", "", 9)
 	pdf.SetFillColor(255, 255, 255)
 	for _, item := range orderDetail.Items {
-		ltrCell(35, 7, db.FormatCurrency(item.TotalCents, item.Currency), "1", 0, false, 0)
-		ltrCell(35, 7, db.FormatCurrency(item.UnitPriceCents, item.Currency), "1", 0, false, 0)
+		discountAmount := (item.TotalCents * int64(item.DiscountPercent)) / 100
+		totalAfterDiscount := item.TotalCents - discountAmount
+		ltrCell(30, 7, db.FormatCurrency(totalAfterDiscount, item.Currency), "1", 0, false, 0)
+		ltrCell(30, 7, fmt.Sprintf("%d%%", item.DiscountPercent), "1", 0, false, 0)
+		ltrCell(30, 7, db.FormatCurrency(item.UnitPriceCents, item.Currency), "1", 0, false, 0)
 		ltrCell(20, 7, fmt.Sprintf("%d", item.Qty), "1", 0, false, 0)
-		arabicCell(80, 7, item.NameSnapshot, "1", 1, false, 0)
+		arabicCell(60, 7, item.NameSnapshot, "1", 1, false, 0)
 	}
 
 	// Totals (RTL)
 	pdf.Ln(5)
 	pdf.SetFont("Amiri", "", 10)
-	subtotal, discount, tax, total := db.CalcOrderTotals(orderDetail.Items, orderDetail.Order.DiscountPercent, orderDetail.Order.TaxPercent)
+	subtotal, discount, _, total := db.CalcOrderTotals(orderDetail.Items, 0, 0)
 	ltrCell(35, 7, db.FormatCurrency(subtotal, "USD"), "1", 0, false, 0)
-	arabicCell(35, 7, "المجموع:", "", 1, false, 0)
-	if orderDetail.Order.DiscountPercent > 0 {
+	arabicCell(135, 7, "المجموع:", "", 1, false, 0)
+	if discount > 0 {
 		ltrCell(35, 7, fmt.Sprintf("-%s", db.FormatCurrency(discount, "USD")), "1", 0, false, 0)
-		arabicCell(35, 7, fmt.Sprintf("الخصم (%d%%):", orderDetail.Order.DiscountPercent), "", 1, false, 0)
-	}
-	if orderDetail.Order.TaxPercent > 0 {
-		ltrCell(35, 7, db.FormatCurrency(tax, "USD"), "1", 0, false, 0)
-		arabicCell(35, 7, fmt.Sprintf("الضريبة (%d%%):", orderDetail.Order.TaxPercent), "", 1, false, 0)
+		arabicCell(135, 7, "الخصم:", "", 1, false, 0)
 	}
 	pdf.SetFont("Amiri", "", 12)
 	ltrCell(35, 8, db.FormatCurrency(total, "USD"), "1", 0, false, 0)
-	arabicCell(35, 8, "الإجمالي:", "", 1, false, 0)
+	arabicCell(135, 8, "الإجمالي:", "", 1, false, 0)
 
 	// Notes (RTL)
 	if orderDetail.Order.Notes != nil && *orderDetail.Order.Notes != "" {

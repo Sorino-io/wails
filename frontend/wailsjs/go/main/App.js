@@ -6,8 +6,8 @@ export function CreateClient(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateClient'](arg1, arg2, arg3, arg4);
 }
 
-export function CreateOrder(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['CreateOrder'](arg1, arg2, arg3, arg4, arg5);
+export function CreateOrder(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CreateOrder'](arg1, arg2, arg3, arg4);
 }
 
 export function CreateProduct(arg1, arg2, arg3, arg4) {
@@ -42,8 +42,8 @@ export function GetOrderStatuses() {
   return window['go']['main']['App']['GetOrderStatuses']();
 }
 
-export function GetOrders(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['GetOrders'](arg1, arg2, arg3, arg4, arg5);
+export function GetOrders(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['GetOrders'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function GetProduct(arg1) {
@@ -62,8 +62,8 @@ export function UpdateClient(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['UpdateClient'](arg1, arg2, arg3, arg4, arg5);
 }
 
-export function UpdateOrder(arg1, arg2, arg3, arg4, arg5, arg6) {
-  return window['go']['main']['App']['UpdateOrder'](arg1, arg2, arg3, arg4, arg5, arg6);
+export function UpdateOrder(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['UpdateOrder'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function UpdateProduct(arg1, arg2, arg3, arg4, arg5) {

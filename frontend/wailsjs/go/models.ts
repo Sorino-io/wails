@@ -123,7 +123,6 @@ export namespace db {
 	    status: string;
 	    notes?: string;
 	    discount_percent: number;
-	    tax_percent: number;
 	    // Go type: time
 	    issue_date: any;
 	    // Go type: time
@@ -145,7 +144,6 @@ export namespace db {
 	        this.status = source["status"];
 	        this.notes = source["notes"];
 	        this.discount_percent = source["discount_percent"];
-	        this.tax_percent = source["tax_percent"];
 	        this.issue_date = this.convertValues(source["issue_date"], null);
 	        this.due_date = this.convertValues(source["due_date"], null);
 	        this.created_at = this.convertValues(source["created_at"], null);
@@ -178,6 +176,7 @@ export namespace db {
 	    sku_snapshot?: string;
 	    qty: number;
 	    unit_price_cents: number;
+	    discount_percent: number;
 	    currency: string;
 	    total_cents: number;
 	
@@ -194,6 +193,7 @@ export namespace db {
 	        this.sku_snapshot = source["sku_snapshot"];
 	        this.qty = source["qty"];
 	        this.unit_price_cents = source["unit_price_cents"];
+	        this.discount_percent = source["discount_percent"];
 	        this.currency = source["currency"];
 	        this.total_cents = source["total_cents"];
 	    }

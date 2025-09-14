@@ -4,7 +4,7 @@ import {db} from '../models';
 
 export function CreateClient(arg1:string,arg2:string,arg3:string,arg4:string):Promise<db.Client>;
 
-export function CreateOrder(arg1:number,arg2:string,arg3:number,arg4:number,arg5:Array<Record<string, any>>):Promise<db.Order>;
+export function CreateOrder(arg1:number,arg2:string,arg3:number,arg4:Array<Record<string, any>>):Promise<db.Order>;
 
 export function CreateProduct(arg1:string,arg2:string,arg3:number,arg4:string):Promise<db.Product>;
 
@@ -22,7 +22,7 @@ export function GetOrder(arg1:number):Promise<db.OrderDetail>;
 
 export function GetOrderStatuses():Promise<Array<string>>;
 
-export function GetOrders(arg1:string,arg2:number,arg3:string,arg4:number,arg5:number):Promise<db.PaginatedResult_myproject_backend_db_OrderDetail_>;
+export function GetOrders(arg1:string,arg2:number,arg3:string,arg4:number,arg5:number,arg6:string):Promise<db.PaginatedResult_myproject_backend_db_OrderDetail_>;
 
 export function GetProduct(arg1:number):Promise<db.Product>;
 
@@ -32,6 +32,6 @@ export function Greet(arg1:string):Promise<string>;
 
 export function UpdateClient(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string):Promise<db.Client>;
 
-export function UpdateOrder(arg1:number,arg2:string,arg3:string,arg4:any,arg5:any,arg6:Array<Record<string, any>>):Promise<db.Order>;
+export function UpdateOrder(arg1:number,arg2:string,arg3:string,arg4:any,arg5:Array<Record<string, any>>):Promise<db.Order>;
 
 export function UpdateProduct(arg1:number,arg2:string,arg3:string,arg4:number,arg5:string):Promise<db.Product>;

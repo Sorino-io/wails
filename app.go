@@ -230,7 +230,7 @@ func (a *App) GetDashboardMetrics(timeRange string) (*db.DashboardData, error) {
 // Order operations
 
 // CreateOrder creates a new order
-func (a *App) CreateOrder(clientID int, notes string, discountPercent, taxPercent int, items []map[string]interface{}) (*db.Order, error) {
+func (a *App) CreateOrder(clientID int, notes string, discountPercent int, items []map[string]interface{}) (*db.Order, error) {
 	var notesPtr *string
 	if notes != "" {
 		notesPtr = &notes
@@ -253,18 +253,20 @@ func (a *App) CreateOrder(clientID int, notes string, discountPercent, taxPercen
 		nameSnapshot, _ := item["name_snapshot"].(string)
 		qty, _ := item["qty"].(float64)
 		unitPriceCents, _ := item["unit_price_cents"].(float64)
+		discountPercent, _ := item["discount_percent"].(float64)
 		currency, _ := item["currency"].(string)
 		if currency == "" {
 			currency = "USD"
 		}
 
 		orderItems[i] = db.OrderItemDraft{
-			ProductID:      productID,
-			NameSnapshot:   nameSnapshot,
-			SKUSnapshot:    skuSnapshot,
-			Qty:            int(qty),
-			UnitPriceCents: int64(unitPriceCents),
-			Currency:       currency,
+			ProductID:       productID,
+			NameSnapshot:    nameSnapshot,
+			SKUSnapshot:     skuSnapshot,
+			Qty:             int(qty),
+			UnitPriceCents:  int64(unitPriceCents),
+			DiscountPercent: int(discountPercent),
+			Currency:        currency,
 		}
 	}
 
@@ -272,7 +274,6 @@ func (a *App) CreateOrder(clientID int, notes string, discountPercent, taxPercen
 		ClientID:        int64(clientID),
 		Notes:           notesPtr,
 		DiscountPercent: discountPercent,
-		TaxPercent:      taxPercent,
 		Items:           orderItems,
 	}
 
@@ -280,7 +281,7 @@ func (a *App) CreateOrder(clientID int, notes string, discountPercent, taxPercen
 }
 
 // GetOrders retrieves orders with pagination and search
-func (a *App) GetOrders(query string, clientID int, status string, limit, offset int) (*db.PaginatedResult[db.OrderDetail], error) {
+func (a *App) GetOrders(query string, clientID int, status string, limit, offset int, sort string) (*db.PaginatedResult[db.OrderDetail], error) {
 	filters := db.OrderFilters{}
 	if query != "" {
 		filters.Query = &query
@@ -291,6 +292,9 @@ func (a *App) GetOrders(query string, clientID int, status string, limit, offset
 	}
 	if status != "" {
 		filters.Status = &status
+	}
+	if sort != "" {
+		filters.Sort = &sort
 	}
 
 	orders, total, err := a.orderService.List(a.ctx, filters, limit, offset)
@@ -309,7 +313,7 @@ func (a *App) GetOrder(id int) (*db.OrderDetail, error) {
 }
 
 // UpdateOrder updates an existing order
-func (a *App) UpdateOrder(id int, status, notes string, discountPercent, taxPercent *int, items []map[string]interface{}) (*db.Order, error) {
+func (a *App) UpdateOrder(id int, status, notes string, discountPercent *int, items []map[string]interface{}) (*db.Order, error) {
 	update := db.OrderUpdate{
 		ID: int64(id),
 	}
@@ -322,9 +326,6 @@ func (a *App) UpdateOrder(id int, status, notes string, discountPercent, taxPerc
 	}
 	if discountPercent != nil {
 		update.DiscountPercent = discountPercent
-	}
-	if taxPercent != nil {
-		update.TaxPercent = taxPercent
 	}
 
 	// Convert items if provided
@@ -345,18 +346,20 @@ func (a *App) UpdateOrder(id int, status, notes string, discountPercent, taxPerc
 			nameSnapshot, _ := item["name_snapshot"].(string)
 			qty, _ := item["qty"].(float64)
 			unitPriceCents, _ := item["unit_price_cents"].(float64)
+			discountPercent, _ := item["discount_percent"].(float64)
 			currency, _ := item["currency"].(string)
 			if currency == "" {
 				currency = "USD"
 			}
 
 			orderItems[i] = db.OrderItemDraft{
-				ProductID:      productID,
-				NameSnapshot:   nameSnapshot,
-				SKUSnapshot:    skuSnapshot,
-				Qty:            int(qty),
-				UnitPriceCents: int64(unitPriceCents),
-				Currency:       currency,
+				ProductID:       productID,
+				NameSnapshot:    nameSnapshot,
+				SKUSnapshot:     skuSnapshot,
+				Qty:             int(qty),
+				UnitPriceCents:  int64(unitPriceCents),
+				DiscountPercent: int(discountPercent),
+				Currency:        currency,
 			}
 		}
 		update.Items = orderItems

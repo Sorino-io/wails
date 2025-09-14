@@ -66,6 +66,7 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
+
               <tr v-if="loading" v-for="n in 5" :key="n">
                 <td v-for="m in 6" :key="m" class="px-6 py-4">
                   <div class="animate-pulse bg-gray-200 h-4 rounded"></div>
@@ -253,12 +254,12 @@
                 </div>
                 
                 <div class="space-y-3">
-                  <div 
+                      <div 
                     v-for="(item, index) in newOrder.items" 
                     :key="index"
                     class="border rounded-lg p-4 bg-gray-50"
                   >
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                       <div>
                         <label class="form-label text-xs">{{ $t('orders.product') }}</label>
                         <div class="relative">
@@ -315,6 +316,17 @@
                           @input="calculateItemTotal(index)"
                         />
                       </div>
+
+                      <div>
+                        <label class="form-label text-xs">{{ $t('orders.discount_percent') }}</label>
+                        <input
+                          v-model.number="item.discount_percent"
+                          type="number"
+                          min="0"
+                          max="100"
+                          class="form-input text-sm"
+                        />
+                      </div>
                       
                       <div class="flex items-center space-x-2">
                         <div class="text-sm font-medium">
@@ -340,17 +352,6 @@
                     <label class="form-label">{{ $t('orders.discount_percent') }}</label>
                     <input
                       v-model.number="newOrder.discount_percent"
-                      type="number"
-                      min="0"
-                      max="100"
-                      class="form-input"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label class="form-label">{{ $t('orders.tax_percent') }}</label>
-                    <input
-                      v-model.number="newOrder.tax_percent"
                       type="number"
                       min="0"
                       max="100"
@@ -473,13 +474,13 @@ const newOrder = ref({
   client_id: '',
   notes: '',
   discount_percent: 0,
-  tax_percent: 0,
   items: [] as Array<{
     product_id: string
     name_snapshot: string
     sku_snapshot: string
     qty: number
     unit_price: number
+    discount_percent: number
     currency: string
     productSearch: string
   }>
@@ -499,11 +500,29 @@ const fetchOrders = async () => {
   try {
     loading.value = true
     error.value = null
-    
-    const result = await GetOrders(searchQuery.value, 0, '', pageSize, (currentPage.value - 1) * pageSize)
+    console.log('Fetching orders with params:', {
+      query: searchQuery.value,
+      clientID: 0,
+      status: '',
+      limit: pageSize,
+      offset: (currentPage.value - 1) * pageSize,
+      sort: ''
+    })
+    // Pass all filter and sort params in correct order: query, clientID, status, limit, offset, sort
+    const result = await GetOrders(
+      searchQuery.value,                  // query
+      0,                                  // clientID (0 = all)
+      '',                                 // status (empty = all)
+      pageSize,                           // limit
+      (currentPage.value - 1) * pageSize, // offset
+      ''                                  // sort (empty string = default sort)
+    )
+    console.log('Got orders result:', JSON.stringify(result, null, 2))
     orders.value = result.data || []
     totalOrders.value = result.total || 0
+    console.log('Set orders:', JSON.stringify(orders.value, null, 2), 'total:', totalOrders.value)
   } catch (err) {
+    console.error('Error fetching orders:', err)
     error.value = err instanceof Error ? err.message : 'Failed to fetch orders'
   } finally {
     loading.value = false
@@ -593,7 +612,6 @@ const closeCreateModal = () => {
     client_id: '',
     notes: '',
     discount_percent: 0,
-    tax_percent: 0,
     items: []
   }
   // Reset search states
@@ -612,6 +630,7 @@ const addOrderItem = () => {
     sku_snapshot: '',
     qty: 1,
     unit_price: 0,
+    discount_percent: 0,
     currency: 'USD',
     productSearch: ''
   })
@@ -693,11 +712,12 @@ const calculateOrderTotal = () => {
     return sum + (item.qty * item.unit_price * 100)
   }, 0)
   
-  const discount = subtotal * (newOrder.value.discount_percent / 100)
-  const afterDiscount = subtotal - discount
-  const tax = afterDiscount * (newOrder.value.tax_percent / 100)
-  
-  return afterDiscount + tax
+  const itemDiscounts = newOrder.value.items.reduce((sum, item) => {
+    const itemTotal = item.qty * item.unit_price * 100
+    return sum + (itemTotal * (item.discount_percent / 100))
+  }, 0)
+
+  return subtotal - itemDiscounts
 }
 
 const saveOrder = async () => {
@@ -711,12 +731,14 @@ const saveOrder = async () => {
       sku_snapshot: item.sku_snapshot || null,
       qty: item.qty,
       unit_price_cents: Math.round(item.unit_price * 100),
+      discount_percent: item.discount_percent,
       currency: item.currency
     }))
 
     if (isEditing.value && editingOrderId.value) {
       // Use UpdateOrder: (id, status, notes, discountPercent, taxPercent, items)
-      await UpdateOrder(editingOrderId.value, '', newOrder.value.notes, newOrder.value.discount_percent, newOrder.value.tax_percent, items)
+      const discountPercent = newOrder.value.discount_percent > 0 ? newOrder.value.discount_percent : null;
+      await UpdateOrder(editingOrderId.value, '', newOrder.value.notes, discountPercent, items)
       isEditing.value = false
       editingOrderId.value = null
       showCreateModal.value = false
@@ -726,7 +748,6 @@ const saveOrder = async () => {
         parseInt(newOrder.value.client_id),
         newOrder.value.notes,
         newOrder.value.discount_percent,
-        newOrder.value.tax_percent,
         items
       )
       closeCreateModal()
@@ -762,13 +783,13 @@ const editOrder = async (order: any) => {
     newOrder.value.client_id = orderDetail.order.client_id.toString()
     newOrder.value.notes = orderDetail.order.notes || ''
     newOrder.value.discount_percent = orderDetail.order.discount_percent
-    newOrder.value.tax_percent = orderDetail.order.tax_percent
     newOrder.value.items = orderDetail.items.map((it: any) => ({
       product_id: it.product_id ? it.product_id.toString() : '',
       name_snapshot: it.name_snapshot,
       sku_snapshot: it.sku_snapshot || '',
       qty: it.qty,
       unit_price: it.unit_price_cents / 100,
+      discount_percent: it.discount_percent || 0,
       currency: it.currency || 'DZD',
       productSearch: it.name_snapshot
     }))
@@ -798,7 +819,6 @@ const cancelEdit = () => {
     client_id: '',
     notes: '',
     discount_percent: 0,
-    tax_percent: 0,
     items: []
   }
 }

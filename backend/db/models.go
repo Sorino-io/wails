@@ -42,7 +42,6 @@ type Order struct {
 	Status          string     `json:"status" db:"status"`
 	Notes           *string    `json:"notes" db:"notes"`
 	DiscountPercent int        `json:"discount_percent" db:"discount_percent"`
-	TaxPercent      int        `json:"tax_percent" db:"tax_percent"`
 	IssueDate       time.Time  `json:"issue_date" db:"issue_date"`
 	DueDate         *time.Time `json:"due_date" db:"due_date"`
 	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
@@ -51,15 +50,16 @@ type Order struct {
 
 // OrderItem represents a line item in an order
 type OrderItem struct {
-	ID             int64   `json:"id" db:"id"`
-	OrderID        int64   `json:"order_id" db:"order_id"`
-	ProductID      *int64  `json:"product_id" db:"product_id"`
-	NameSnapshot   string  `json:"name_snapshot" db:"name_snapshot"`
-	SKUSnapshot    *string `json:"sku_snapshot" db:"sku_snapshot"`
-	Qty            int     `json:"qty" db:"qty"`
-	UnitPriceCents int64   `json:"unit_price_cents" db:"unit_price_cents"`
-	Currency       string  `json:"currency" db:"currency"`
-	TotalCents     int64   `json:"total_cents" db:"total_cents"`
+	ID              int64   `json:"id" db:"id"`
+	OrderID         int64   `json:"order_id" db:"order_id"`
+	ProductID       *int64  `json:"product_id" db:"product_id"`
+	NameSnapshot    string  `json:"name_snapshot" db:"name_snapshot"`
+	SKUSnapshot     *string `json:"sku_snapshot" db:"sku_snapshot"`
+	Qty             int     `json:"qty" db:"qty"`
+	UnitPriceCents  int64   `json:"unit_price_cents" db:"unit_price_cents"`
+	DiscountPercent int     `json:"discount_percent" db:"discount_percent"`
+	Currency        string  `json:"currency" db:"currency"`
+	TotalCents      int64   `json:"total_cents" db:"total_cents"`
 }
 
 // Invoice represents a bill sent to customer
@@ -134,7 +134,6 @@ type OrderDraft struct {
 	ClientID        int64            `json:"client_id"`
 	Notes           *string          `json:"notes"`
 	DiscountPercent int              `json:"discount_percent"`
-	TaxPercent      int              `json:"tax_percent"`
 	IssueDate       *time.Time       `json:"issue_date"`
 	DueDate         *time.Time       `json:"due_date"`
 	Items           []OrderItemDraft `json:"items"`
@@ -142,12 +141,13 @@ type OrderDraft struct {
 
 // OrderItemDraft for creating order items
 type OrderItemDraft struct {
-	ProductID      *int64  `json:"product_id"`
-	NameSnapshot   string  `json:"name_snapshot"`
-	SKUSnapshot    *string `json:"sku_snapshot"`
-	Qty            int     `json:"qty"`
-	UnitPriceCents int64   `json:"unit_price_cents"`
-	Currency       string  `json:"currency"`
+	ProductID       *int64  `json:"product_id"`
+	NameSnapshot    string  `json:"name_snapshot"`
+	SKUSnapshot     *string `json:"sku_snapshot"`
+	Qty             int     `json:"qty"`
+	UnitPriceCents  int64   `json:"unit_price_cents"`
+	DiscountPercent int     `json:"discount_percent"`
+	Currency        string  `json:"currency"`
 }
 
 // OrderUpdate for updating orders
@@ -156,7 +156,6 @@ type OrderUpdate struct {
 	Status          *string          `json:"status"`
 	Notes           *string          `json:"notes"`
 	DiscountPercent *int             `json:"discount_percent"`
-	TaxPercent      *int             `json:"tax_percent"`
 	DueDate         *time.Time       `json:"due_date"`
 	Items           []OrderItemDraft `json:"items"`
 }
@@ -209,6 +208,7 @@ type OrderFilters struct {
 	ClientID *int64  `json:"client_id"`
 	Status   *string `json:"status"`
 	Query    *string `json:"query"`
+	Sort     *string `json:"sort"`
 }
 
 // DashboardData for dashboard metrics
