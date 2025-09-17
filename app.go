@@ -44,10 +44,6 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	appDir := filepath.Join(configDir, "myproject")
-	if err := os.MkdirAll(appDir, 0755); err != nil {
-		log.Printf("failed to create app config dir: %v", err)
-		return
-	}
 
 	// Database file path
 	dbPath := filepath.Join(appDir, "data.db")
@@ -174,7 +170,7 @@ func (a *App) CreateProduct(name, description string, price float64, sku string)
 		Name:           name,
 		Description:    descPtr,
 		SKU:            skuPtr,
-		UnitPriceCents: int64(price * 100), // Convert dollars to cents
+		UnitPriceCents: int64(price), // Convert dollars to cents
 		Currency:       "USD",
 		Active:         true,
 	}
@@ -213,7 +209,7 @@ func (a *App) UpdateProduct(id int, name, description string, price float64, sku
 		Name:           name,
 		Description:    descPtr,
 		SKU:            skuPtr,
-		UnitPriceCents: int64(price * 100), // Convert dollars to cents
+		UnitPriceCents: int64(price), // Convert dollars to cents
 		Currency:       "USD",
 		Active:         true,
 	}

@@ -62,7 +62,7 @@ export const useProductStore = defineStore('products', {
         const newProduct = await CreateProduct(
           product.name,
           product.description || '',
-          product.price,
+          product.price * 100,
           product.sku || ''
         )
         
@@ -85,7 +85,7 @@ export const useProductStore = defineStore('products', {
           product.id,
           product.name,
           product.description || '',
-          product.price,
+          product.price * 100,
           product.sku || ''
         )
         
