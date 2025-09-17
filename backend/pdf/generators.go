@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"myproject/backend/db"
 	"os"
@@ -10,6 +11,50 @@ import (
 	"github.com/01walid/goarabic"
 	"github.com/go-pdf/fpdf"
 )
+
+//go:embed embedded/fonts/frontendsrcassetsfontsAmiri-Regular.ttf
+var amiriFont []byte
+
+// registerAmiriFont registers the Amiri UTF-8 font with fpdf.
+// It first tries known file paths (dev/build) and falls back to the embedded bytes.
+func registerAmiriFont(pdf *fpdf.Fpdf) error {
+	// Try existing file paths (useful in dev)
+	fontPaths := []string{
+		"frontend/src/assets/fonts/frontendsrcassetsfontsAmiri-Regular.ttf",    // Dev path
+		"../frontend/src/assets/fonts/frontendsrcassetsfontsAmiri-Regular.ttf", // Build path
+		"./frontendsrcassetsfontsAmiri-Regular.ttf",                            // Direct path
+	}
+
+	for _, path := range fontPaths {
+		if _, err := os.Stat(path); err == nil {
+			pdf.AddUTF8Font("Amiri", "", path)
+			return nil
+		}
+	}
+
+	// Fall back to embedded font bytes when running from a packaged binary
+	if len(amiriFont) > 0 {
+		tmpFile, err := os.CreateTemp("", "amiri-*.ttf")
+		if err != nil {
+			return fmt.Errorf("failed to create temp font file: %w", err)
+		}
+		tmpPath := tmpFile.Name()
+		if _, err := tmpFile.Write(amiriFont); err != nil {
+			_ = tmpFile.Close()
+			_ = os.Remove(tmpPath)
+			return fmt.Errorf("failed to write temp font file: %w", err)
+		}
+		_ = tmpFile.Close()
+
+		// Ensure cleanup regardless of success
+		defer os.Remove(tmpPath)
+
+		pdf.AddUTF8Font("Amiri", "", tmpPath)
+		return nil
+	}
+
+	return fmt.Errorf("could not load Amiri font from disk or embedded resources")
+}
 
 // OrderPDFGenerator generates PDF documents for orders
 type OrderPDFGenerator struct{}
@@ -26,25 +71,9 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	pdf.SetAutoPageBreak(true, 20)
 	pdf.AddPage()
 
-	// Register Arabic-supporting font
-	fontPaths := []string{
-		"frontend/src/assets/fonts/frontendsrcassetsfontsAmiri-Regular.ttf",    // Dev path
-		"../frontend/src/assets/fonts/frontendsrcassetsfontsAmiri-Regular.ttf", // Build path
-		"./frontendsrcassetsfontsAmiri-Regular.ttf",
-		// "./embedded/fonts/frontendsrcassetsfontsAmiri-Regular.ttf", // Embedded path
-	}
-
-	var fontLoaded bool
-	for _, path := range fontPaths {
-		if _, err := os.Stat(path); err == nil {
-			pdf.AddUTF8Font("Amiri", "", path)
-			fontLoaded = true
-			break
-		}
-	}
-
-	if !fontLoaded {
-		return nil, fmt.Errorf("could not find font file in any of these locations: %v", fontPaths)
+	// Register Arabic-supporting font (robust in dev & build)
+	if err := registerAmiriFont(pdf); err != nil {
+		return nil, err
 	}
 
 	pdf.SetFont("Amiri", "", 16)
@@ -198,24 +227,9 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 	pdf.SetAutoPageBreak(true, 20)
 	pdf.AddPage()
 
-	// Register Arabic-supporting font
-	fontPaths := []string{
-		"frontend/src/assets/fonts/frontendsrcassetsfontsAmiri-Regular.ttf",    // Dev path
-		"../frontend/src/assets/fonts/frontendsrcassetsfontsAmiri-Regular.ttf", // Build path
-		"./frontendsrcassetsfontsAmiri-Regular.ttf",                            // Direct path
-	}
-
-	var fontLoaded bool
-	for _, path := range fontPaths {
-		if _, err := os.Stat(path); err == nil {
-			pdf.AddUTF8Font("Amiri", "", path)
-			fontLoaded = true
-			break
-		}
-	}
-
-	if !fontLoaded {
-		return nil, fmt.Errorf("could not find font file in any of these locations: %v", fontPaths)
+	// Register Arabic-supporting font (robust in dev & build)
+	if err := registerAmiriFont(pdf); err != nil {
+		return nil, err
 	}
 
 	pdf.SetFont("Amiri", "", 16)

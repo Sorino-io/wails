@@ -826,17 +826,31 @@ const cancelEdit = () => {
 const exportOrderPDF = async (order: any) => {
   try {
     console.log('Exporting PDF for order:', order.order.id)
-    const pdfBytes = await ExportOrderPDF(order.order.id)
-    
-    // Decode base64 string to Uint8Array
-    const binaryString = window.atob(pdfBytes as any);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+    const pdfBytes: any = await ExportOrderPDF(order.order.id)
+
+    // Handle both dev (string/base64) and build (Uint8Array/number[]) results
+    let bytes: Uint8Array
+    if (typeof pdfBytes === 'string') {
+      // Base64 string
+      const binaryString = window.atob(pdfBytes)
+      const len = binaryString.length
+      bytes = new Uint8Array(len)
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+    } else if (pdfBytes instanceof Uint8Array) {
+      bytes = pdfBytes
+    } else if (Array.isArray(pdfBytes)) {
+      // number[]
+      bytes = new Uint8Array(pdfBytes)
+    } else if (pdfBytes && Array.isArray(pdfBytes.data)) {
+      // Some runtimes wrap as { data: number[] }
+      bytes = new Uint8Array(pdfBytes.data)
+    } else {
+      throw new Error('Unexpected PDF bytes format')
     }
 
-    // Create blob and download
+    // Create blob and download/preview
     const blob = new Blob([bytes], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
