@@ -127,10 +127,10 @@ func ValidateQuantity(qty int) error {
 	return nil
 }
 
-// ValidatePrice validates price in cents (must be non-negative)
+// ValidatePrice validates price in cents (must be strictly positive)
 func ValidatePrice(priceCents int64) error {
-	if priceCents < 0 {
-		return fmt.Errorf("price cannot be negative")
+	if priceCents <= 0 {
+		return fmt.Errorf("price must be greater than 0")
 	}
 	return nil
 }

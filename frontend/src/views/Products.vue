@@ -126,7 +126,6 @@
     <div
       v-if="showCreateModal || showEditModal"
       class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-      @click="closeModal"
     >
       <div
         class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
@@ -186,7 +185,11 @@
               >
                 {{ $t("actions.cancel") }}
               </button>
-              <button type="submit" :disabled="loading" class="btn btn-primary">
+              <button
+                type="submit"
+                :disabled="loading || currentProduct.price <= 0"
+                class="btn btn-primary disabled:opacity-50"
+              >
                 {{ loading ? $t("messages.loading") : $t("actions.save") }}
               </button>
             </div>

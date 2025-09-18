@@ -121,7 +121,6 @@
     <div
       v-if="showCreateModal || showEditModal"
       class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-      @click="closeModal"
     >
       <div
         class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
@@ -199,7 +198,6 @@
     <div
       v-if="showAdjustModal"
       class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-      @click="closeAdjustModal"
     >
       <div
         class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
@@ -231,8 +229,44 @@
             </button>
             <button
               type="button"
-              @click="confirmAdjustDebt"
+              @click="openConfirmAdjustDebt"
               class="btn btn-primary"
+            >
+              {{ $t("actions.save") }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Adjust Modal (custom, sticky) -->
+    <div
+      v-if="showConfirmAdjustModal"
+      class="fixed inset-0 bg-gray-700 bg-opacity-60 overflow-y-auto h-full w-full z-[60]"
+    >
+      <div
+        class="relative top-24 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
+        @click.stop
+      >
+        <div class="mt-1">
+          <h3 class="text-lg font-medium text-gray-900 mb-3">
+            {{ $t("clients.adjust_debt") }}
+          </h3>
+          <p class="mb-4 text-sm text-gray-700">
+            {{ $t("clients.confirm_adjust") }}
+          </p>
+          <div class="flex justify-end space-x-3 space-x-reverse">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="cancelConfirmAdjust"
+            >
+              {{ $t("actions.cancel") }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              @click="applyAdjustDebt"
             >
               {{ $t("actions.save") }}
             </button>
@@ -373,6 +407,7 @@ function formatCurrency(cents: number) {
 }
 
 const showAdjustModal = ref(false);
+const showConfirmAdjustModal = ref(false);
 const adjustTarget = ref<any>(null);
 const adjustAmount = ref<number>(0);
 const adjustMode = ref<"inc" | "dec">("inc");
@@ -390,19 +425,29 @@ function closeAdjustModal() {
   adjustAmount.value = 0;
 }
 
-async function confirmAdjustDebt() {
+function openConfirmAdjustDebt() {
+  // Open the custom confirmation modal instead of native confirm()
+  showConfirmAdjustModal.value = true;
+}
+
+function cancelConfirmAdjust() {
+  showConfirmAdjustModal.value = false;
+}
+
+async function applyAdjustDebt() {
   if (!adjustTarget.value) return;
   let delta = Math.round(adjustAmount.value * 100);
   if (adjustMode.value === "dec") delta = -delta;
   if (delta === 0) {
     closeAdjustModal();
+    showConfirmAdjustModal.value = false;
     return;
   }
-  if (!confirm(t("clients.confirm_adjust"))) return;
   try {
     await clientStore.adjustDebt(adjustTarget.value.id, delta);
     await loadClients();
     closeAdjustModal();
+    showConfirmAdjustModal.value = false;
   } catch (e) {
     console.error(e);
   }
