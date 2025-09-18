@@ -63,15 +63,24 @@
                 <div class="inline-flex items-center justify-center gap-2">
                   <button
                     @click="editClient(client)"
-                    class="text-blue-600 hover:text-blue-900 text-sm"
+                    class="text-blue-600 hover:text-blue-900 p-1 rounded"
+                    :title="$t('common.edit')"
                   >
-                    {{ $t("actions.edit") }}
+                    <PencilIcon class="h-4 w-4" />
                   </button>
                   <button
-                    @click="openAdjustDebt(client)"
-                    class="text-amber-600 hover:text-amber-800 text-sm"
+                    @click="openAdjustDebt(client, 'inc')"
+                    class="text-amber-600 hover:text-amber-800 p-1 rounded"
+                    :title="$t('clients.adjust_debt') + ' (+)'"
                   >
-                    {{ $t("clients.adjust_debt") }}
+                    <ArrowUpIcon class="h-4 w-4" />
+                  </button>
+                  <button
+                    @click="openAdjustDebt(client, 'dec')"
+                    class="text-green-600 hover:text-green-800 p-1 rounded"
+                    :title="$t('clients.adjust_debt') + ' (-)'"
+                  >
+                    <ArrowDownIcon class="h-4 w-4" />
                   </button>
                 </div>
               </td>
@@ -237,6 +246,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+  PencilIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+} from "@heroicons/vue/24/outline";
 import { useClientStore } from "../stores/clients";
 
 const { t } = useI18n();
@@ -361,9 +375,11 @@ function formatCurrency(cents: number) {
 const showAdjustModal = ref(false);
 const adjustTarget = ref<any>(null);
 const adjustAmount = ref<number>(0);
+const adjustMode = ref<"inc" | "dec">("inc");
 
-function openAdjustDebt(client: any) {
+function openAdjustDebt(client: any, mode: "inc" | "dec" = "inc") {
   adjustTarget.value = client;
+  adjustMode.value = mode;
   adjustAmount.value = 0;
   showAdjustModal.value = true;
 }
@@ -376,7 +392,8 @@ function closeAdjustModal() {
 
 async function confirmAdjustDebt() {
   if (!adjustTarget.value) return;
-  const delta = Math.round(adjustAmount.value * 100);
+  let delta = Math.round(adjustAmount.value * 100);
+  if (adjustMode.value === "dec") delta = -delta;
   if (delta === 0) {
     closeAdjustModal();
     return;

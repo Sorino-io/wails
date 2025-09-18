@@ -82,9 +82,10 @@
                 <div class="inline-flex items-center justify-center gap-2">
                   <button
                     @click="editProduct(product)"
-                    class="text-blue-600 hover:text-blue-900 text-sm"
+                    class="text-blue-600 hover:text-blue-900 p-1 rounded"
+                    :title="$t('common.edit')"
                   >
-                    {{ $t("actions.edit") }}
+                    <PencilIcon class="h-4 w-4" />
                   </button>
                 </div>
               </td>
@@ -199,6 +200,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { PencilIcon } from "@heroicons/vue/24/outline";
 import { useProductStore, type Product } from "../stores/products";
 
 const { t } = useI18n();
