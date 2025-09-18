@@ -5,7 +5,7 @@
   },
   "nav": {
     "dashboard": "لوحة التحكم",
-    "clients": "العملاء", 
+    "clients": "العملاء",
     "products": "المنتجات",
     "orders": "الطلبات",
     "invoices": "الفواتير",
@@ -41,7 +41,7 @@
   "invoice": {
     "status": {
       "draft": "مسودة",
-      "issued": "مصدّرة", 
+      "issued": "مصدّرة",
       "paid": "مدفوعة",
       "canceled": "ملغاة"
     }
@@ -83,12 +83,13 @@
     "reference": "المرجع",
     "paid_at": "تاريخ الدفع",
     "balance": "الرصيد المتبقي",
-    "status": "الحالة"
+    "status": "الحالة",
+    "actions": "الإجراءات"
   },
   "messages": {
     "success": {
       "created": "تم الإنشاء بنجاح",
-      "updated": "تم التحديث بنجاح", 
+      "updated": "تم التحديث بنجاح",
       "deleted": "تم الحذف بنجاح",
       "saved": "تم الحفظ بنجاح"
     },
@@ -115,7 +116,7 @@
     "title": "لوحة التحكم",
     "metrics": {
       "orders_this_month": "الطلبات هذا الشهر",
-      "invoices_this_month": "الفواتير هذا الشهر", 
+      "invoices_this_month": "الفواتير هذا الشهر",
       "payments_collected": "المدفوعات المحصلة",
       "outstanding_invoices": "الفواتير المعلقة"
     },
@@ -134,7 +135,7 @@
   "products": {
     "title": "إدارة المنتجات",
     "create": "إنشاء منتج جديد",
-    "edit": "تعديل المنتج", 
+    "edit": "تعديل المنتج",
     "list": "قائمة المنتجات",
     "search_placeholder": "البحث بالاسم أو رمز المنتج...",
     "override_price": "تعديل السعر"
@@ -208,9 +209,24 @@
   },
   "payments": {
     "title": "إدارة المدفوعات",
+    "subtitle": "إدارة وتسجيل مدفوعات العملاء",
     "create": "تسجيل دفعة جديدة",
     "list": "قائمة المدفوعات",
-    "details": "تفاصيل الدفعة"
+    "details": "تفاصيل الدفعة",
+    "search_placeholder": "ابحث في المدفوعات...",
+    "client": "العميل",
+    "invoice": "الفاتورة",
+    "payment_reference": "المرجع",
+    "amount": "المبلغ",
+    "date": "التاريخ",
+    "status": "الحالة",
+    "actions": "إجراءات",
+    "add": "إضافة دفعة",
+    "add_payment": "إضافة دفعة",
+    "method": "الطريقة",
+    "no_payments": "لا توجد مدفوعات",
+    "no_payments_subtitle": "ابدأ بإضافة أول دفعة",
+    "noData": "لا توجد دفعات بعد"
   },
   "currency": {
     "symbol": "د.ج",
