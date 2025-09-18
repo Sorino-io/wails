@@ -50,32 +50,32 @@
             <thead class="bg-gray-50">
               <tr>
                 <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   {{ $t("orders.order_number") }}
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   {{ $t("orders.client") }}
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   {{ $t("fields.status") }}
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   {{ $t("orders.total") }}
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   {{ $t("orders.date") }}
                 </th>
                 <th
-                  class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   {{ $t("orders.actions") }}
                 </th>
@@ -83,7 +83,7 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               <tr v-if="loading" v-for="n in 5" :key="n">
-                <td v-for="m in 6" :key="m" class="px-6 py-4">
+                <td v-for="m in 6" :key="m" class="px-6 py-4 text-center">
                   <div class="animate-pulse bg-gray-200 h-4 rounded"></div>
                 </td>
               </tr>
@@ -102,17 +102,17 @@
                 :key="order.order.id"
                 class="hover:bg-gray-50"
               >
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-6 py-4 whitespace-nowrap text-center">
                   <div class="text-sm font-medium text-gray-900">
                     {{ order.order.order_number }}
                   </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-6 py-4 whitespace-nowrap text-center">
                   <div class="text-sm text-gray-900">
                     {{ order.client.name }}
                   </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-6 py-4 whitespace-nowrap text-center">
                   <span
                     :class="getStatusColor(order.order.status)"
                     class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
@@ -124,20 +124,22 @@
                     }}
                   </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-6 py-4 whitespace-nowrap text-center">
                   <div class="text-sm text-gray-900">
                     {{ formatPrice(order.total_cents || 0) }}
                   </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-6 py-4 whitespace-nowrap text-center">
                   <div class="text-sm text-gray-500">
                     {{ formatDate(order.order.created_at) }}
                   </div>
                 </td>
                 <td
-                  class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
+                  class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium"
                 >
-                  <div class="flex items-center justify-end space-x-2">
+                  <div
+                    class="flex items-center justify-center space-x-2 space-x-reverse"
+                  >
                     <button
                       @click="viewOrder(order)"
                       class="text-blue-600 hover:text-blue-900 p-1 rounded transition-colors"
@@ -237,7 +239,9 @@
         >
           <div class="mt-3">
             <h3 class="text-lg font-medium text-gray-900 mb-4">
-              {{ $t("orders.create_order") }}
+              {{
+                isEditing ? $t("orders.edit_order") : $t("orders.create_order")
+              }}
             </h3>
 
             <form @submit.prevent="saveOrder" class="space-y-6">
@@ -452,8 +456,21 @@
                   class="btn btn-primary disabled:opacity-50"
                 >
                   {{
-                    loading ? $t("messages.loading") : $t("orders.create_order")
+                    loading
+                      ? $t("messages.loading")
+                      : isEditing
+                      ? $t("actions.save")
+                      : $t("orders.create_order")
                   }}
+                </button>
+                <button
+                  v-if="isEditing"
+                  type="button"
+                  :disabled="loading || newOrder.items.length === 0"
+                  class="btn btn-secondary disabled:opacity-50"
+                  @click="saveOrderAndExport"
+                >
+                  {{ $t("orders.save_and_export") }}
                 </button>
               </div>
             </form>
@@ -853,7 +870,7 @@ const calculateOrderTotal = () => {
   return subtotal - itemDiscounts;
 };
 
-const saveOrder = async () => {
+const saveOrderInternal = async (exportAfterSave: boolean) => {
   try {
     loading.value = true;
 
@@ -870,17 +887,53 @@ const saveOrder = async () => {
 
     if (isEditing.value && editingOrderId.value) {
       // Use UpdateOrder: (id, status, notes, discountPercent, taxPercent, items)
+      const id = editingOrderId.value;
       const discountPercent =
         newOrder.value.discount_percent > 0
           ? newOrder.value.discount_percent
           : null;
-      await UpdateOrder(
-        editingOrderId.value,
-        "",
-        newOrder.value.notes,
-        discountPercent,
-        items
-      );
+      await UpdateOrder(id, "", newOrder.value.notes, discountPercent, items);
+      // Optionally export PDF after save
+      if (exportAfterSave && id) {
+        try {
+          const updatedDetail = await GetOrder(id);
+          const pdfBytes: any = await ExportOrderPDF(id);
+          let bytes: Uint8Array;
+          if (typeof pdfBytes === "string") {
+            const binaryString = window.atob(pdfBytes);
+            const len = binaryString.length;
+            bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+          } else if (pdfBytes instanceof Uint8Array) {
+            bytes = pdfBytes;
+          } else if (Array.isArray(pdfBytes)) {
+            bytes = new Uint8Array(pdfBytes);
+          } else if (pdfBytes && Array.isArray(pdfBytes.data)) {
+            bytes = new Uint8Array(pdfBytes.data);
+          } else {
+            throw new Error("Unexpected PDF bytes format");
+          }
+
+          const ab = bytes.buffer.slice(
+            bytes.byteOffset,
+            bytes.byteOffset + bytes.byteLength
+          ) as ArrayBuffer;
+          const blob = new Blob([ab], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          const filename = updatedDetail?.order?.order_number
+            ? `order-${updatedDetail.order.order_number}.pdf`
+            : `order-${id}.pdf`;
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.error("Failed to export PDF after save:", e);
+        }
+      }
       isEditing.value = false;
       editingOrderId.value = null;
       showCreateModal.value = false;
@@ -901,6 +954,14 @@ const saveOrder = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const saveOrder = async () => {
+  await saveOrderInternal(false);
+};
+
+const saveOrderAndExport = async () => {
+  await saveOrderInternal(true);
 };
 
 const viewOrder = async (order: any) => {
@@ -938,7 +999,14 @@ const editOrder = async (order: any) => {
     }));
 
     detailOrder.value = orderDetail;
-    showDetailModal.value = true;
+    // Prefill client search text and ensure dropdowns are ready
+    clientSearch.value = orderDetail.client?.name || "";
+    showClientDropdown.value = false;
+    filteredClients.value = [];
+    await fetchClients();
+    await fetchProducts();
+    // Open only the create/edit form
+    showDetailModal.value = false;
     showCreateModal.value = true;
   } catch (err) {
     console.error("Error preparing edit:", err);
@@ -993,8 +1061,12 @@ const exportOrderPDF = async (order: any) => {
       throw new Error("Unexpected PDF bytes format");
     }
 
-    // Create blob and download/preview
-    const blob = new Blob([bytes], { type: "application/pdf" });
+    // Create blob and download/preview (ArrayBuffer slice for TS safety)
+    const ab = bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength
+    ) as ArrayBuffer;
+    const blob = new Blob([ab], { type: "application/pdf" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

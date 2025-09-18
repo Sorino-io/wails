@@ -15,7 +15,7 @@ type Client struct {
 	ID        int64      `json:"id" db:"id"`
 	Name      string     `json:"name" db:"name"`
 	Phone     *string    `json:"phone" db:"phone"`
-	Email     *string    `json:"email" db:"email"`
+	DebtCents int64      `json:"debt_cents" db:"debt_cents"`
 	Address   *string    `json:"address" db:"address"`
 	CreatedAt time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`

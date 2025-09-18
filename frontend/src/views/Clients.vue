@@ -37,7 +37,7 @@
             <tr>
               <th>{{ $t("fields.name") }}</th>
               <th>{{ $t("fields.phone") }}</th>
-              <th>{{ $t("fields.email") }}</th>
+              <th>{{ $t("fields.debt") }}</th>
               <th>{{ $t("fields.address") }}</th>
               <th class="text-center">{{ $t("fields.actions") }}</th>
             </tr>
@@ -57,7 +57,7 @@
             <tr v-else v-for="client in clients" :key="client.id">
               <td class="font-medium">{{ client.name }}</td>
               <td>{{ client.phone || "---" }}</td>
-              <td>{{ client.email || "---" }}</td>
+              <td>{{ formatCurrency(client.debt_cents || 0) }}</td>
               <td>{{ client.address || "---" }}</td>
               <td class="text-center">
                 <div class="inline-flex items-center justify-center gap-2">
@@ -66,6 +66,12 @@
                     class="text-blue-600 hover:text-blue-900 text-sm"
                   >
                     {{ $t("actions.edit") }}
+                  </button>
+                  <button
+                    @click="openAdjustDebt(client)"
+                    class="text-amber-600 hover:text-amber-800 text-sm"
+                  >
+                    {{ $t("clients.adjust_debt") }}
                   </button>
                 </div>
               </td>
@@ -153,14 +159,7 @@
               />
             </div>
 
-            <div>
-              <label class="form-label">{{ $t("fields.email") }}</label>
-              <input
-                v-model="currentClient.email"
-                type="email"
-                class="form-input"
-              />
-            </div>
+            <!-- debt is not editable here; use adjust modal -->
 
             <div>
               <label class="form-label">{{ $t("fields.address") }}</label>
@@ -184,6 +183,51 @@
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+    <!-- Adjust Debt Modal -->
+    <div
+      v-if="showAdjustModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+      @click="closeAdjustModal"
+    >
+      <div
+        class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
+        @click.stop
+      >
+        <div class="mt-3">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">
+            {{ $t("clients.adjust_debt") }}
+          </h3>
+          <p class="mb-3 text-sm text-gray-600">
+            {{ $t("clients.adjust_debt_hint") }}
+          </p>
+          <div class="mb-4">
+            <label class="form-label">{{ $t("fields.amount") }}</label>
+            <input
+              v-model.number="adjustAmount"
+              type="number"
+              step="0.01"
+              class="form-input"
+            />
+          </div>
+          <div class="flex justify-end space-x-3 space-x-reverse">
+            <button
+              type="button"
+              @click="closeAdjustModal"
+              class="btn btn-secondary"
+            >
+              {{ $t("actions.cancel") }}
+            </button>
+            <button
+              type="button"
+              @click="confirmAdjustDebt"
+              class="btn btn-primary"
+            >
+              {{ $t("actions.save") }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -213,7 +257,7 @@ const currentClient = ref({
   id: undefined as number | undefined,
   name: "",
   phone: "",
-  email: "",
+  debt_cents: 0,
   address: "",
 });
 
@@ -275,7 +319,7 @@ function closeModal() {
     id: undefined,
     name: "",
     phone: "",
-    email: "",
+    debt_cents: 0,
     address: "",
   };
 }
@@ -308,4 +352,42 @@ async function saveClient() {
 onMounted(() => {
   loadClients();
 });
+
+function formatCurrency(cents: number) {
+  const amount = (cents / 100).toFixed(2);
+  return `${amount} ${t("currency.symbol")}`;
+}
+
+const showAdjustModal = ref(false);
+const adjustTarget = ref<any>(null);
+const adjustAmount = ref<number>(0);
+
+function openAdjustDebt(client: any) {
+  adjustTarget.value = client;
+  adjustAmount.value = 0;
+  showAdjustModal.value = true;
+}
+
+function closeAdjustModal() {
+  showAdjustModal.value = false;
+  adjustTarget.value = null;
+  adjustAmount.value = 0;
+}
+
+async function confirmAdjustDebt() {
+  if (!adjustTarget.value) return;
+  const delta = Math.round(adjustAmount.value * 100);
+  if (delta === 0) {
+    closeAdjustModal();
+    return;
+  }
+  if (!confirm(t("clients.confirm_adjust"))) return;
+  try {
+    await clientStore.adjustDebt(adjustTarget.value.id, delta);
+    await loadClients();
+    closeAdjustModal();
+  } catch (e) {
+    console.error(e);
+  }
+}
 </script>

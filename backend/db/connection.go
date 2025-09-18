@@ -56,6 +56,15 @@ func Connect(dataSourceName string) (*DB, error) {
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
+	// Improve concurrency and reduce locking issues
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		// Non-fatal: log via fmt, but continue
+		fmt.Printf("warning: failed to set journal_mode=WAL: %v\n", err)
+	}
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		fmt.Printf("warning: failed to set busy_timeout: %v\n", err)
+	}
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(10)   // Allow multiple connections for better concurrency
 	db.SetMaxIdleConns(5)    // Keep some idle connections

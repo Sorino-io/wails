@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build backend (Go)",
+			"type": "shell",
+			"command": "go build ./...",
+			"problemMatcher": [
+				"$go"
+			],
+			"group": "build"
+		}
+	]
+}

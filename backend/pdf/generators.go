@@ -128,9 +128,9 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	if orderDetail.Client.Phone != nil {
 		arabicLabelLtrValueCell(70, 6, "الهاتف: ", *orderDetail.Client.Phone)
 	}
-	if orderDetail.Client.Email != nil {
-		arabicLabelLtrValueCell(70, 6, "البريد الإلكتروني: ", *orderDetail.Client.Email)
-	}
+	// if orderDetail.Client.Email != nil {
+	// 	arabicLabelLtrValueCell(70, 6, "البريد الإلكتروني: ", *orderDetail.Client.Email)
+	// }
 	if orderDetail.Client.Address != nil {
 		arabicCell(70, 6, "العنوان: "+*orderDetail.Client.Address, "", 2, false, 0)
 	}
@@ -270,10 +270,7 @@ func (g *InvoicePDFGenerator) GenerateInvoicePDF(invoiceDetail db.InvoiceDetail)
 		pdf.Ln(6)
 	}
 
-	if invoiceDetail.Client.Email != nil {
-		pdf.Cell(40, 6, fmt.Sprintf("Email: %s", *invoiceDetail.Client.Email))
-		pdf.Ln(6)
-	}
+	// Email removed from client model
 
 	if invoiceDetail.Client.Address != nil {
 		pdf.Cell(40, 6, fmt.Sprintf("Address: %s", *invoiceDetail.Client.Address))

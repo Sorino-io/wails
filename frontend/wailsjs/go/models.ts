@@ -4,7 +4,7 @@ export namespace db {
 	    id: number;
 	    name: string;
 	    phone?: string;
-	    email?: string;
+	    debt_cents: number;
 	    address?: string;
 	    // Go type: time
 	    created_at: any;
@@ -20,7 +20,7 @@ export namespace db {
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.phone = source["phone"];
-	        this.email = source["email"];
+	        this.debt_cents = source["debt_cents"];
 	        this.address = source["address"];
 	        this.created_at = this.convertValues(source["created_at"], null);
 	        this.updated_at = this.convertValues(source["updated_at"], null);

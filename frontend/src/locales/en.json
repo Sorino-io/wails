@@ -84,7 +84,8 @@
     "paid_at": "Paid At",
     "balance": "Balance",
     "status": "Status",
-    "actions": "Actions"
+    "actions": "Actions",
+    "debt": "Debt"
   },
   "messages": {
     "success": {
@@ -130,7 +131,10 @@
     "create": "Create New Client",
     "edit": "Edit Client",
     "list": "Client List",
-    "search_placeholder": "Search by name or phone..."
+    "search_placeholder": "Search by name or phone...",
+    "adjust_debt": "Adjust Debt",
+    "adjust_debt_hint": "Use positive amount to increase debt, negative to decrease.",
+    "confirm_adjust": "Are you sure you want to adjust this client's debt?"
   },
   "products": {
     "title": "Product Management",
@@ -145,6 +149,7 @@
     "subtitle": "Manage customer orders and track their status",
     "create": "Create New Order",
     "create_order": "Create Order",
+    "edit_order": "Edit Order",
     "edit": "Edit Order",
     "list": "Order List",
     "details": "Order Details",
@@ -172,6 +177,7 @@
     "no_orders": "No orders found",
     "no_orders_subtitle": "Create your first order to get started",
     "export_pdf": "Export PDF",
+    "save_and_export": "Save & Export PDF",
     "order_status": {
       "pending": "Pending",
       "confirmed": "Confirmed",

@@ -23,13 +23,6 @@ func (s *ClientService) Create(ctx context.Context, client db.Client) (*db.Clien
 		return nil, fmt.Errorf("اسم العميل مطلوب") // Client name is required
 	}
 
-	// Validate email format if provided
-	if client.Email != nil && *client.Email != "" {
-		if !isValidEmail(*client.Email) {
-			return nil, fmt.Errorf("تنسيق البريد الإلكتروني غير صحيح") // Invalid email format
-		}
-	}
-
 	return s.repo.CreateClient(ctx, client)
 }
 
@@ -69,13 +62,6 @@ func (s *ClientService) Update(ctx context.Context, client db.Client) (*db.Clien
 		return nil, fmt.Errorf("اسم العميل مطلوب") // Client name is required
 	}
 
-	// Validate email format if provided
-	if client.Email != nil && *client.Email != "" {
-		if !isValidEmail(*client.Email) {
-			return nil, fmt.Errorf("تنسيق البريد الإلكتروني غير صحيح") // Invalid email format
-		}
-	}
-
 	// Check if client exists
 	_, err := s.repo.GetClient(ctx, client.ID)
 	if err != nil {
@@ -85,19 +71,20 @@ func (s *ClientService) Update(ctx context.Context, client db.Client) (*db.Clien
 	return s.repo.UpdateClient(ctx, client)
 }
 
-// isValidEmail performs basic email validation
-func isValidEmail(email string) bool {
-	// Simple email validation - in production, use a proper email validation library
-	return len(email) > 3 && len(email) < 255 &&
-		contains(email, "@") && contains(email, ".")
-}
-
-// contains checks if string contains substring
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
+// AdjustDebt adjusts a client's debt by deltaCents (can be negative)
+func (s *ClientService) AdjustDebt(ctx context.Context, clientID int64, deltaCents int64) (*db.Client, error) {
+	if clientID <= 0 {
+		return nil, fmt.Errorf("معرف العميل غير صحيح")
 	}
-	return false
+	// Fetch client to ensure exists
+	client, err := s.repo.GetClient(ctx, clientID)
+	if err != nil {
+		return nil, fmt.Errorf("العميل غير موجود")
+	}
+	newDebt := client.DebtCents + deltaCents
+	if newDebt < 0 {
+		newDebt = 0 // prevent negative debt
+	}
+	client.DebtCents = newDebt
+	return s.repo.UpdateClient(ctx, *client)
 }

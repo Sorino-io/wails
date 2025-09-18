@@ -21,10 +21,10 @@ func NewRepository(db *DB) *Repository {
 
 func (r *Repository) CreateClient(ctx context.Context, client Client) (*Client, error) {
 	query := `
-		INSERT INTO client (name, phone, email, address, created_at, updated_at)
+		INSERT INTO client (name, phone, address, debt_cents, created_at, updated_at)
 		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`
-	result, err := r.db.ExecContext(ctx, query, client.Name, client.Phone, client.Email, client.Address)
+	result, err := r.db.ExecContext(ctx, query, client.Name, client.Phone, client.Address, client.DebtCents)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
@@ -40,11 +40,11 @@ func (r *Repository) CreateClient(ctx context.Context, client Client) (*Client, 
 }
 
 func (r *Repository) GetClient(ctx context.Context, id int64) (*Client, error) {
-	query := `SELECT id, name, phone, email, address, created_at, updated_at FROM client WHERE id = ?`
+	query := `SELECT id, name, phone, address, debt_cents, created_at, updated_at FROM client WHERE id = ?`
 
 	var client Client
 	row := r.db.QueryRowContext(ctx, query, id)
-	err := row.Scan(&client.ID, &client.Name, &client.Phone, &client.Email, &client.Address, &client.CreatedAt, &client.UpdatedAt)
+	err := row.Scan(&client.ID, &client.Name, &client.Phone, &client.Address, &client.DebtCents, &client.CreatedAt, &client.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("client not found")
@@ -69,7 +69,7 @@ func (r *Repository) ListClients(ctx context.Context, query string, limit, offse
 
 	// Get clients
 	listQuery := `
-		SELECT id, name, phone, email, address, created_at, updated_at 
+		SELECT id, name, phone, address, debt_cents, created_at, updated_at 
 		FROM client 
 		WHERE name LIKE ? 
 		ORDER BY name 
@@ -83,7 +83,7 @@ func (r *Repository) ListClients(ctx context.Context, query string, limit, offse
 
 	for rows.Next() {
 		var client Client
-		err := rows.Scan(&client.ID, &client.Name, &client.Phone, &client.Email, &client.Address, &client.CreatedAt, &client.UpdatedAt)
+	err := rows.Scan(&client.ID, &client.Name, &client.Phone, &client.Address, &client.DebtCents, &client.CreatedAt, &client.UpdatedAt)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan client: %w", err)
 		}
@@ -96,10 +96,10 @@ func (r *Repository) ListClients(ctx context.Context, query string, limit, offse
 func (r *Repository) UpdateClient(ctx context.Context, client Client) (*Client, error) {
 	query := `
 		UPDATE client 
-		SET name = ?, phone = ?, email = ?, address = ?, updated_at = CURRENT_TIMESTAMP
+		SET name = ?, phone = ?, address = ?, debt_cents = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`
-	_, err := r.db.ExecContext(ctx, query, client.Name, client.Phone, client.Email, client.Address, client.ID)
+	_, err := r.db.ExecContext(ctx, query, client.Name, client.Phone, client.Address, client.DebtCents, client.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update client: %w", err)
 	}
@@ -249,9 +249,11 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		return nil, fmt.Errorf("failed to get order ID: %w", err)
 	}
 
+	var orderTotalCents int64
 	// Create order items
 	for _, item := range draft.Items {
 		totalCents := int64(item.Qty) * item.UnitPriceCents
+		orderTotalCents += totalCents - (totalCents*int64(item.DiscountPercent))/100
 		itemQuery := `
 			INSERT INTO order_item (order_id, product_id, name_snapshot, sku_snapshot, qty, unit_price_cents, discount_percent, currency, total_cents)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -260,6 +262,18 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 			item.SKUSnapshot, item.Qty, item.UnitPriceCents, item.DiscountPercent, item.Currency, totalCents)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create order item: %w", err)
+		}
+	}
+
+	// Apply order-level discount
+	if draft.DiscountPercent > 0 && draft.DiscountPercent <= 100 {
+		orderTotalCents = orderTotalCents - (orderTotalCents*int64(draft.DiscountPercent))/100
+	}
+
+	// Increment client's debt by order total
+	if orderTotalCents > 0 {
+		if _, err := tx.ExecContext(ctx, `UPDATE client SET debt_cents = COALESCE(debt_cents,0) + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, orderTotalCents, draft.ClientID); err != nil {
+			return nil, fmt.Errorf("failed to update client debt: %w", err)
 		}
 	}
 
@@ -332,7 +346,7 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 				o.id, o.order_number, o.client_id, o.status, o.notes, 
 				o.discount_percent, o.issue_date, o.due_date,
 				o.created_at, o.updated_at,
-				c.id, c.name, c.phone, c.email, c.address, c.created_at, c.updated_at
+				c.id, c.name, c.phone, c.address, c.debt_cents, c.created_at, c.updated_at
 			FROM "order" o
 			JOIN client c ON o.client_id = c.id
 			%s
@@ -356,8 +370,8 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 			&order.Order.ID, &order.Order.OrderNumber, &order.Order.ClientID, &order.Order.Status,
 			&order.Order.Notes, &order.Order.DiscountPercent,
 			&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt,
-			&order.Client.ID, &order.Client.Name, &order.Client.Phone, &order.Client.Email,
-			&order.Client.Address, &order.Client.CreatedAt, &order.Client.UpdatedAt,
+			&order.Client.ID, &order.Client.Name, &order.Client.Phone,
+			&order.Client.Address, &order.Client.DebtCents, &order.Client.CreatedAt, &order.Client.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan order: %w", err)
@@ -390,7 +404,7 @@ func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail
 			o.id, o.order_number, o.client_id, o.status, o.notes, 
 			o.discount_percent, o.issue_date, o.due_date,
 			o.created_at, o.updated_at,
-			c.id, c.name, c.phone, c.email, c.address, c.created_at, c.updated_at
+			c.id, c.name, c.phone, c.address, c.debt_cents, c.created_at, c.updated_at
 		FROM "order" o
 		JOIN client c ON o.client_id = c.id
 		WHERE o.id = ?
@@ -401,8 +415,8 @@ func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail
 		&order.Order.ID, &order.Order.OrderNumber, &order.Order.ClientID, &order.Order.Status,
 		&order.Order.Notes, &order.Order.DiscountPercent,
 		&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt,
-		&order.Client.ID, &order.Client.Name, &order.Client.Phone, &order.Client.Email,
-		&order.Client.Address, &order.Client.CreatedAt, &order.Client.UpdatedAt,
+		&order.Client.ID, &order.Client.Name, &order.Client.Phone,
+		&order.Client.Address, &order.Client.DebtCents, &order.Client.CreatedAt, &order.Client.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -510,7 +524,7 @@ func (r *Repository) ListInvoices(ctx context.Context, limit, offset int) ([]Inv
 
 	query := `
 		SELECT i.id, i.invoice_number, i.order_id, i.client_id, i.status, i.issue_date, i.due_date, i.notes, i.subtotal_cents, i.discount_percent, i.tax_percent, i.total_cents, i.currency, i.created_at, i.updated_at,
-			   c.id, c.name, c.phone, c.email, c.address, c.created_at, c.updated_at
+			   c.id, c.name, c.phone, c.address, c.debt_cents, c.created_at, c.updated_at
 		FROM invoice i
 		JOIN client c ON i.client_id = c.id
 		ORDER BY i.created_at DESC
@@ -528,7 +542,7 @@ func (r *Repository) ListInvoices(ctx context.Context, limit, offset int) ([]Inv
 		var client Client
 		// scan invoice fields then client fields
 		err := rows.Scan(&inv.ID, &inv.InvoiceNumber, &inv.OrderID, &inv.ClientID, &inv.Status, &inv.IssueDate, &inv.DueDate, &inv.Notes, &inv.SubtotalCents, &inv.DiscountPercent, &inv.TaxPercent, &inv.TotalCents, &inv.Currency, &inv.CreatedAt, &inv.UpdatedAt,
-			&client.ID, &client.Name, &client.Phone, &client.Email, &client.Address, &client.CreatedAt, &client.UpdatedAt)
+			&client.ID, &client.Name, &client.Phone, &client.Address, &client.DebtCents, &client.CreatedAt, &client.UpdatedAt)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan invoice with client: %w", err)
 		}
