@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"path"
 	"sort"
 	"strings"
 
@@ -29,7 +30,23 @@ func Connect(dataSourceName string) (*DB, error) {
 		}
 	}
 
-	db, err := sql.Open("sqlite", dataSourceName)
+	// Ensure the database file exists on disk to avoid lazy creation issues in packaged builds
+	if _, err := os.Stat(dataSourceName); os.IsNotExist(err) {
+		f, createErr := os.OpenFile(dataSourceName, os.O_RDWR|os.O_CREATE, 0644)
+		if createErr != nil {
+			return nil, fmt.Errorf("failed to create database file: %w", createErr)
+		}
+		_ = f.Close()
+	}
+
+	// Build a SQLite DSN that explicitly enables read/write/create mode
+	absPath, _ := filepath.Abs(dataSourceName)
+	// Convert Windows backslashes to forward slashes for the URI
+	uriPath := strings.ReplaceAll(absPath, "\\", "/")
+	// Construct DSN without over-escaping (sqlite accepts file:C:/... on Windows)
+	dsn := fmt.Sprintf("file:%s?mode=rwc&cache=shared", uriPath)
+
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -172,7 +189,8 @@ func (db *DB) RunEmbeddedMigrations(embeddedFS embed.FS, migrationsDir string) e
 		}
 
 		// Read migration file from embedded filesystem
-		fullPath := filepath.Join(migrationsDir, migrationFile)
+	// Use forward-slash join for embedded FS paths
+	fullPath := path.Join(migrationsDir, migrationFile)
 		content, err := embeddedFS.ReadFile(fullPath)
 		if err != nil {
 			return fmt.Errorf("failed to read embedded migration file %s: %w", migrationFile, err)
