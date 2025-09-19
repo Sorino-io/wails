@@ -293,13 +293,7 @@
               <div>
                 <div class="flex items-center justify-between mb-4">
                   <label class="form-label">{{ $t("orders.items") }} *</label>
-                  <button
-                    type="button"
-                    @click="addOrderItem"
-                    class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
-                  >
-                    {{ $t("orders.add_item") }}
-                  </button>
+                  
                 </div>
 
                 <div class="space-y-3">
@@ -415,9 +409,19 @@
                   </div>
                 </div>
               </div>
+              <div class="flex">
+
+                <button
+                type="button"
+                @click="addOrderItem"
+                class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                >
+                {{ $t("orders.add_item") }}
+              </button>
+            </div>
 
               <!-- Order Totals -->
-              <div class="border-t pt-4">
+              <div class="border-t pt-4 ">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label class="form-label">{{
