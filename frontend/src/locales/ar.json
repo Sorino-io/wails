@@ -5,7 +5,7 @@
   },
   "nav": {
     "dashboard": "لوحة التحكم",
-    "clients": "العملاء", 
+    "clients": "العملاء",
     "products": "المنتجات",
     "orders": "الطلبات",
     "invoices": "الفواتير",
@@ -41,7 +41,7 @@
   "invoice": {
     "status": {
       "draft": "مسودة",
-      "issued": "مصدّرة", 
+      "issued": "مصدّرة",
       "paid": "مدفوعة",
       "canceled": "ملغاة"
     }
@@ -83,12 +83,14 @@
     "reference": "المرجع",
     "paid_at": "تاريخ الدفع",
     "balance": "الرصيد المتبقي",
-    "status": "الحالة"
+    "status": "الحالة",
+    "actions": "الإجراءات",
+    "debt": "الدَّيْن"
   },
   "messages": {
     "success": {
       "created": "تم الإنشاء بنجاح",
-      "updated": "تم التحديث بنجاح", 
+      "updated": "تم التحديث بنجاح",
       "deleted": "تم الحذف بنجاح",
       "saved": "تم الحفظ بنجاح"
     },
@@ -115,7 +117,7 @@
     "title": "لوحة التحكم",
     "metrics": {
       "orders_this_month": "الطلبات هذا الشهر",
-      "invoices_this_month": "الفواتير هذا الشهر", 
+      "invoices_this_month": "الفواتير هذا الشهر",
       "payments_collected": "المدفوعات المحصلة",
       "outstanding_invoices": "الفواتير المعلقة"
     },
@@ -129,12 +131,15 @@
     "create": "إنشاء عميل",
     "edit": "تعديل العميل",
     "list": "قائمة العملاء",
-    "search_placeholder": "البحث بالاسم أو الهاتف..."
+    "search_placeholder": "البحث بالاسم أو الهاتف...",
+    "adjust_debt": "تعديل الدين",
+    "adjust_debt_hint": "استخدم المبلغ الموجب لزيادة الدين والسالب لتقليله.",
+    "confirm_adjust": "هل أنت متأكد من تعديل دين هذا العميل؟"
   },
   "products": {
     "title": "إدارة المنتجات",
     "create": "إنشاء منتج جديد",
-    "edit": "تعديل المنتج", 
+    "edit": "تعديل المنتج",
     "list": "قائمة المنتجات",
     "search_placeholder": "البحث بالاسم أو رمز المنتج...",
     "override_price": "تعديل السعر"
@@ -143,6 +148,7 @@
     "title": "إدارة الطلبات",
     "subtitle": "إدارة طلبات العملاء وتتبع حالتها",
     "create": "إنشاء طلب جديد",
+    "edit_order": "تعديل الطلب",
     "create_order": "إنشاء طلب",
     "edit": "تعديل الطلب",
     "list": "قائمة الطلبات",
@@ -171,6 +177,7 @@
     "no_orders": "لا توجد طلبات",
     "no_orders_subtitle": "يرجى إضافة طلبات جديدة",
     "export_pdf": "تصدير إلى PDF",
+    "save_and_export": "حفظ وتصدير PDF",
     "order_status": {
       "pending": "معلق",
       "processing": "قيد المعالجة",
@@ -208,9 +215,24 @@
   },
   "payments": {
     "title": "إدارة المدفوعات",
+    "subtitle": "إدارة وتسجيل مدفوعات العملاء",
     "create": "تسجيل دفعة جديدة",
     "list": "قائمة المدفوعات",
-    "details": "تفاصيل الدفعة"
+    "details": "تفاصيل الدفعة",
+    "search_placeholder": "ابحث في المدفوعات...",
+    "client": "العميل",
+    "invoice": "الفاتورة",
+    "payment_reference": "المرجع",
+    "amount": "المبلغ",
+    "date": "التاريخ",
+    "status": "الحالة",
+    "actions": "إجراءات",
+    "add": "إضافة دفعة",
+    "add_payment": "إضافة دفعة",
+    "method": "الطريقة",
+    "no_payments": "لا توجد مدفوعات",
+    "no_payments_subtitle": "ابدأ بإضافة أول دفعة",
+    "noData": "لا توجد دفعات بعد"
   },
   "currency": {
     "symbol": "د.ج",

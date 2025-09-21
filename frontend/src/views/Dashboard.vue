@@ -92,20 +92,6 @@
         </div>
       </div>
 
-      <!-- Recent Invoices -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="text-lg font-medium text-gray-900">
-            {{ $t('invoices.title') }} - الأحدث
-          </h3>
-        </div>
-        <div class="card-body">
-          <div class="text-center text-gray-500 py-8">
-            <DocumentTextIcon class="h-12 w-12 mx-auto mb-4" />
-            <p>{{ $t('messages.loading') }}</p>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -117,7 +103,6 @@ import { GetDashboardMetrics } from '../../wailsjs/go/main/App'
 import { db } from '../../wailsjs/go/models'
 import {
   DocumentIcon,
-  DocumentTextIcon,
   CreditCardIcon,
   ExclamationTriangleIcon,
   ChartBarIcon
@@ -136,20 +121,10 @@ const metrics = ref([
     value: '---'
   },
   {
-    name: 'dashboard.metrics.invoices_this_month', 
-    icon: DocumentTextIcon,
-    value: '---'
-  },
-  {
     name: 'dashboard.metrics.payments_collected',
     icon: CreditCardIcon,
     value: '---'
   },
-  {
-    name: 'dashboard.metrics.outstanding_invoices',
-    icon: ExclamationTriangleIcon,
-    value: '---'
-  }
 ])
 
 const topClients = ref<db.TopClient[]>([])
@@ -164,9 +139,7 @@ async function loadDashboardData() {
     
     // Update metrics
     metrics.value[0].value = data.total_orders_month.toString()
-    metrics.value[1].value = data.total_invoices_month.toString()
-    metrics.value[2].value = formatCurrency(data.payments_collected_month_cents)
-    metrics.value[3].value = data.outstanding_invoices_count.toString()
+    metrics.value[1].value = formatCurrency(data.payments_collected_month_cents)
     
     // Update top clients
     topClients.value = data.top_clients || []

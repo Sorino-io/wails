@@ -24,8 +24,10 @@ type App struct {
 	productService *services.ProductService
 	orderService   *services.OrderService
 	orderPDF       *pdf.OrderPDFGenerator
-	invoicePDF     *pdf.InvoicePDFGenerator
-	invoiceService *services.InvoiceService
+	amiriFont      embed.FS
+	// initialization state
+	initialized    bool
+	initErr        error
 }
 
 // NewApp creates a new App application struct
@@ -38,20 +40,22 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Get exe root directory
-	exePath, err := os.Executable()
+	// Get user config directory for the application
+	configDir, err := os.UserConfigDir()
 	if err != nil {
-		log.Printf("failed to get executable path: %v", err)
+		a.initErr = fmt.Errorf("failed to get user config dir: %w", err)
+		log.Printf(a.initErr.Error())
 		return
 	}
-	exeDir := filepath.Dir(exePath)
+	appDir := filepath.Join(configDir, "myproject")
 
-	// Database file in exe root
-	dbPath := filepath.Join(exeDir, "data.db")
+	// Database file path
+	dbPath := filepath.Join(appDir, "data.db")
 	log.Printf("Connecting to database at: %s", dbPath)
 	database, err := db.Connect(dbPath)
 	if err != nil {
-		log.Printf("failed to connect to database: %v", err)
+		a.initErr = fmt.Errorf("failed to connect to database: %w", err)
+		log.Printf(a.initErr.Error())
 		return
 	}
 	a.db = database
@@ -66,7 +70,8 @@ func (a *App) startup(ctx context.Context) {
 		log.Printf("Embedded migrations failed, trying file system: %v", err)
 		// Fallback to file system migrations (for development)
 		if err := a.db.RunMigrations(migrationsDir); err != nil {
-			log.Printf("failed to run migrations: %v", err)
+			a.initErr = fmt.Errorf("failed to run migrations: %w", err)
+			log.Printf(a.initErr.Error())
 			return
 		}
 	}
@@ -77,15 +82,13 @@ func (a *App) startup(ctx context.Context) {
 	a.clientService = services.NewClientService(a.repo)
 	a.productService = services.NewProductService(a.repo)
 	a.orderService = services.NewOrderService(a.repo)
-	// Initialize invoice service
-	a.invoiceService = services.NewInvoiceService(a.repo)
 	log.Printf("✓ Services initialized successfully!")
 
 	// Initialize PDF generators
 	a.orderPDF = pdf.NewOrderPDFGenerator()
-	a.invoicePDF = pdf.NewInvoicePDFGenerator()
 	log.Printf("✓ PDF generators initialized successfully!")
 
+	a.initialized = true
 	log.Printf("🎉 Application startup completed successfully!")
 }
 
@@ -97,29 +100,32 @@ func (a *App) Greet(name string) string {
 // Client operations
 
 // CreateClient creates a new client
-func (a *App) CreateClient(name, phone, email, address string) (*db.Client, error) {
-	var phonePtr, emailPtr, addressPtr *string
+func (a *App) CreateClient(name, phone, address string) (*db.Client, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
+	var phonePtr, addressPtr *string
 	if phone != "" {
 		phonePtr = &phone
-	}
-	if email != "" {
-		emailPtr = &email
 	}
 	if address != "" {
 		addressPtr = &address
 	}
 
 	client := db.Client{
-		Name:    name,
-		Phone:   phonePtr,
-		Email:   emailPtr,
-		Address: addressPtr,
+		Name:      name,
+		Phone:     phonePtr,
+		Address:   addressPtr,
+		DebtCents: 0,
 	}
 	return a.clientService.Create(a.ctx, client)
 }
 
 // GetClients retrieves clients with pagination and search
 func (a *App) GetClients(query string, limit, offset int) (*db.PaginatedResult[db.Client], error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	clients, total, err := a.clientService.List(a.ctx, query, limit, offset)
 	if err != nil {
 		return nil, err
@@ -132,36 +138,50 @@ func (a *App) GetClients(query string, limit, offset int) (*db.PaginatedResult[d
 
 // GetClient retrieves a client by ID
 func (a *App) GetClient(id int) (*db.Client, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	return a.clientService.Get(a.ctx, int64(id))
 }
 
 // UpdateClient updates an existing client
-func (a *App) UpdateClient(id int, name, phone, email, address string) (*db.Client, error) {
-	var phonePtr, emailPtr, addressPtr *string
+func (a *App) UpdateClient(id int, name, phone, address string, debtCents int64) (*db.Client, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
+	var phonePtr, addressPtr *string
 	if phone != "" {
 		phonePtr = &phone
-	}
-	if email != "" {
-		emailPtr = &email
 	}
 	if address != "" {
 		addressPtr = &address
 	}
 
 	client := db.Client{
-		ID:      int64(id),
-		Name:    name,
-		Phone:   phonePtr,
-		Email:   emailPtr,
-		Address: addressPtr,
+		ID:        int64(id),
+		Name:      name,
+		Phone:     phonePtr,
+		Address:   addressPtr,
+		DebtCents: debtCents,
 	}
 	return a.clientService.Update(a.ctx, client)
+}
+
+// AdjustClientDebt adjusts a client's debt by delta cents
+func (a *App) AdjustClientDebt(id int, deltaCents int64) (*db.Client, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
+	return a.clientService.AdjustDebt(a.ctx, int64(id), deltaCents)
 }
 
 // Product operations
 
 // CreateProduct creates a new product
 func (a *App) CreateProduct(name, description string, price float64, sku string) (*db.Product, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	var descPtr, skuPtr *string
 	if description != "" {
 		descPtr = &description
@@ -174,7 +194,7 @@ func (a *App) CreateProduct(name, description string, price float64, sku string)
 		Name:           name,
 		Description:    descPtr,
 		SKU:            skuPtr,
-		UnitPriceCents: int64(price * 100), // Convert dollars to cents
+		UnitPriceCents: int64(price), // Convert dollars to cents
 		Currency:       "USD",
 		Active:         true,
 	}
@@ -183,6 +203,9 @@ func (a *App) CreateProduct(name, description string, price float64, sku string)
 
 // GetProducts retrieves products with pagination and search
 func (a *App) GetProducts(query string, limit, offset int) (*db.PaginatedResult[db.Product], error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	products, total, err := a.productService.List(a.ctx, query, nil, limit, offset)
 	if err != nil {
 		return nil, err
@@ -195,11 +218,17 @@ func (a *App) GetProducts(query string, limit, offset int) (*db.PaginatedResult[
 
 // GetProduct retrieves a product by ID
 func (a *App) GetProduct(id int) (*db.Product, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	return a.productService.Get(a.ctx, int64(id))
 }
 
 // UpdateProduct updates an existing product
 func (a *App) UpdateProduct(id int, name, description string, price float64, sku string) (*db.Product, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	var descPtr, skuPtr *string
 	if description != "" {
 		descPtr = &description
@@ -213,7 +242,7 @@ func (a *App) UpdateProduct(id int, name, description string, price float64, sku
 		Name:           name,
 		Description:    descPtr,
 		SKU:            skuPtr,
-		UnitPriceCents: int64(price * 100), // Convert dollars to cents
+		UnitPriceCents: int64(price), // Convert dollars to cents
 		Currency:       "USD",
 		Active:         true,
 	}
@@ -224,13 +253,19 @@ func (a *App) UpdateProduct(id int, name, description string, price float64, sku
 
 // GetDashboardMetrics retrieves dashboard metrics and data
 func (a *App) GetDashboardMetrics(timeRange string) (*db.DashboardData, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	return a.repo.GetDashboardMetrics(a.ctx, timeRange)
 }
 
 // Order operations
 
 // CreateOrder creates a new order
-func (a *App) CreateOrder(clientID int, notes string, discountPercent, taxPercent int, items []map[string]interface{}) (*db.Order, error) {
+func (a *App) CreateOrder(clientID int, notes string, discountPercent int, items []map[string]interface{}) (*db.Order, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	var notesPtr *string
 	if notes != "" {
 		notesPtr = &notes
@@ -253,18 +288,20 @@ func (a *App) CreateOrder(clientID int, notes string, discountPercent, taxPercen
 		nameSnapshot, _ := item["name_snapshot"].(string)
 		qty, _ := item["qty"].(float64)
 		unitPriceCents, _ := item["unit_price_cents"].(float64)
+		discountPercent, _ := item["discount_percent"].(float64)
 		currency, _ := item["currency"].(string)
 		if currency == "" {
 			currency = "USD"
 		}
 
 		orderItems[i] = db.OrderItemDraft{
-			ProductID:      productID,
-			NameSnapshot:   nameSnapshot,
-			SKUSnapshot:    skuSnapshot,
-			Qty:            int(qty),
-			UnitPriceCents: int64(unitPriceCents),
-			Currency:       currency,
+			ProductID:       productID,
+			NameSnapshot:    nameSnapshot,
+			SKUSnapshot:     skuSnapshot,
+			Qty:             int(qty),
+			UnitPriceCents:  int64(unitPriceCents),
+			DiscountPercent: int(discountPercent),
+			Currency:        currency,
 		}
 	}
 
@@ -272,7 +309,6 @@ func (a *App) CreateOrder(clientID int, notes string, discountPercent, taxPercen
 		ClientID:        int64(clientID),
 		Notes:           notesPtr,
 		DiscountPercent: discountPercent,
-		TaxPercent:      taxPercent,
 		Items:           orderItems,
 	}
 
@@ -280,7 +316,10 @@ func (a *App) CreateOrder(clientID int, notes string, discountPercent, taxPercen
 }
 
 // GetOrders retrieves orders with pagination and search
-func (a *App) GetOrders(query string, clientID int, status string, limit, offset int) (*db.PaginatedResult[db.OrderDetail], error) {
+func (a *App) GetOrders(query string, clientID int, status string, limit, offset int, sort string) (*db.PaginatedResult[db.OrderDetail], error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	filters := db.OrderFilters{}
 	if query != "" {
 		filters.Query = &query
@@ -291,6 +330,9 @@ func (a *App) GetOrders(query string, clientID int, status string, limit, offset
 	}
 	if status != "" {
 		filters.Status = &status
+	}
+	if sort != "" {
+		filters.Sort = &sort
 	}
 
 	orders, total, err := a.orderService.List(a.ctx, filters, limit, offset)
@@ -303,93 +345,19 @@ func (a *App) GetOrders(query string, clientID int, status string, limit, offset
 	}, nil
 }
 
-// Invoice operations
-
-// CreateInvoice creates a new invoice
-func (a *App) CreateInvoice(clientID int, notes string, discountPercent, taxPercent int, items []map[string]interface{}) (*db.Invoice, error) {
-	var notesPtr *string
-	if notes != "" {
-		notesPtr = &notes
-	}
-
-	// Convert items
-	invoiceItems := make([]db.InvoiceItemDraft, len(items))
-	for i, it := range items {
-		var productID *int64
-		if id, ok := it["product_id"].(float64); ok && id > 0 {
-			idInt := int64(id)
-			productID = &idInt
-		}
-		nameSnapshot, _ := it["name_snapshot"].(string)
-		qty, _ := it["qty"].(float64)
-		unitPriceCents, _ := it["unit_price_cents"].(float64)
-		currency, _ := it["currency"].(string)
-		if currency == "" {
-			currency = "DZD"
-		}
-		invoiceItems[i] = db.InvoiceItemDraft{
-			ProductID:      productID,
-			NameSnapshot:   nameSnapshot,
-			SKUSnapshot:    nil,
-			Qty:            int(qty),
-			UnitPriceCents: int64(unitPriceCents),
-			Currency:       currency,
-		}
-	}
-
-	draft := db.InvoiceDraft{
-		ClientID:        int64(clientID),
-		Notes:           notesPtr,
-		DiscountPercent: discountPercent,
-		TaxPercent:      taxPercent,
-		Items:           invoiceItems,
-		Currency:        "DZD",
-	}
-
-	return a.invoiceService.Create(a.ctx, draft)
-}
-
-// GetInvoices lists invoices
-func (a *App) GetInvoices(limit, offset int) (*db.PaginatedResult[db.InvoiceDetail], error) {
-	invoices, total, err := a.invoiceService.List(a.ctx, limit, offset)
-	if err != nil {
-		return nil, err
-	}
-	return &db.PaginatedResult[db.InvoiceDetail]{
-		Data:  invoices,
-		Total: total,
-	}, nil
-}
-
-// GetInvoice retrieves an invoice by id
-func (a *App) GetInvoice(id int) (*db.InvoiceDetail, error) {
-	return a.invoiceService.Get(a.ctx, int64(id))
-}
-
-// ExportInvoicePDF generates invoice PDF
-func (a *App) ExportInvoicePDF(invoiceID int) ([]byte, error) {
-	invoiceDetail, err := a.invoiceService.Get(a.ctx, int64(invoiceID))
-	if err != nil {
-		return nil, err
-	}
-	bytes, err := a.invoicePDF.GenerateInvoicePDF(*invoiceDetail)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("ExportInvoicePDF: invoiceID=%d items=%d bytes=%d\n", invoiceID, len(invoiceDetail.Items), len(bytes))
-	if len(bytes) == 0 {
-		return nil, fmt.Errorf("generated invoice PDF is empty for invoice %d", invoiceID)
-	}
-	return bytes, nil
-}
-
 // GetOrder retrieves an order by ID
 func (a *App) GetOrder(id int) (*db.OrderDetail, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	return a.orderService.Get(a.ctx, int64(id))
 }
 
 // UpdateOrder updates an existing order
-func (a *App) UpdateOrder(id int, status, notes string, discountPercent, taxPercent *int, items []map[string]interface{}) (*db.Order, error) {
+func (a *App) UpdateOrder(id int, status, notes string, discountPercent *int, items []map[string]interface{}) (*db.Order, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	update := db.OrderUpdate{
 		ID: int64(id),
 	}
@@ -402,9 +370,6 @@ func (a *App) UpdateOrder(id int, status, notes string, discountPercent, taxPerc
 	}
 	if discountPercent != nil {
 		update.DiscountPercent = discountPercent
-	}
-	if taxPercent != nil {
-		update.TaxPercent = taxPercent
 	}
 
 	// Convert items if provided
@@ -425,18 +390,20 @@ func (a *App) UpdateOrder(id int, status, notes string, discountPercent, taxPerc
 			nameSnapshot, _ := item["name_snapshot"].(string)
 			qty, _ := item["qty"].(float64)
 			unitPriceCents, _ := item["unit_price_cents"].(float64)
+			discountPercent, _ := item["discount_percent"].(float64)
 			currency, _ := item["currency"].(string)
 			if currency == "" {
 				currency = "USD"
 			}
 
 			orderItems[i] = db.OrderItemDraft{
-				ProductID:      productID,
-				NameSnapshot:   nameSnapshot,
-				SKUSnapshot:    skuSnapshot,
-				Qty:            int(qty),
-				UnitPriceCents: int64(unitPriceCents),
-				Currency:       currency,
+				ProductID:       productID,
+				NameSnapshot:    nameSnapshot,
+				SKUSnapshot:     skuSnapshot,
+				Qty:             int(qty),
+				UnitPriceCents:  int64(unitPriceCents),
+				DiscountPercent: int(discountPercent),
+				Currency:        currency,
 			}
 		}
 		update.Items = orderItems
@@ -447,16 +414,25 @@ func (a *App) UpdateOrder(id int, status, notes string, discountPercent, taxPerc
 
 // DeleteOrder deletes an order (cancels it)
 func (a *App) DeleteOrder(id int) error {
+	if err := a.ensureReady(); err != nil {
+		return err
+	}
 	return a.orderService.Delete(a.ctx, int64(id))
 }
 
 // GetOrderStatuses returns available order statuses
 func (a *App) GetOrderStatuses() []string {
+	if !a.initialized || a.orderService == nil {
+		return []string{}
+	}
 	return a.orderService.GetOrderStatuses()
 }
 
 // ExportOrderPDF generates and exports an order as PDF
 func (a *App) ExportOrderPDF(orderID int) ([]byte, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
 	orderDetail, err := a.orderService.Get(a.ctx, int64(orderID))
 	if err != nil {
 		return nil, err
@@ -476,4 +452,15 @@ func (a *App) ExportOrderPDF(orderID int) ([]byte, error) {
 	}
 
 	return pdfBytes, nil
+}
+
+// ensureReady verifies backend initialization before handling a request
+func (a *App) ensureReady() error {
+	if a.initialized && a.repo != nil && a.clientService != nil && a.productService != nil && a.orderService != nil {
+		return nil
+	}
+	if a.initErr != nil {
+		return fmt.Errorf("backend not initialized: %w", a.initErr)
+	}
+	return fmt.Errorf("backend not initialized yet, please wait")
 }

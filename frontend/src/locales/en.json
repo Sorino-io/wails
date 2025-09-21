@@ -6,7 +6,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "clients": "Clients",
-    "products": "Products", 
+    "products": "Products",
     "orders": "Orders",
     "invoices": "Invoices",
     "payments": "Payments",
@@ -83,7 +83,9 @@
     "reference": "Reference",
     "paid_at": "Paid At",
     "balance": "Balance",
-    "status": "Status"
+    "status": "Status",
+    "actions": "Actions",
+    "debt": "Debt"
   },
   "messages": {
     "success": {
@@ -129,7 +131,10 @@
     "create": "Create New Client",
     "edit": "Edit Client",
     "list": "Client List",
-    "search_placeholder": "Search by name or phone..."
+    "search_placeholder": "Search by name or phone...",
+    "adjust_debt": "Adjust Debt",
+    "adjust_debt_hint": "Use positive amount to increase debt, negative to decrease.",
+    "confirm_adjust": "Are you sure you want to adjust this client's debt?"
   },
   "products": {
     "title": "Product Management",
@@ -144,6 +149,7 @@
     "subtitle": "Manage customer orders and track their status",
     "create": "Create New Order",
     "create_order": "Create Order",
+    "edit_order": "Edit Order",
     "edit": "Edit Order",
     "list": "Order List",
     "details": "Order Details",
@@ -171,6 +177,7 @@
     "no_orders": "No orders found",
     "no_orders_subtitle": "Create your first order to get started",
     "export_pdf": "Export PDF",
+    "save_and_export": "Save & Export PDF",
     "order_status": {
       "pending": "Pending",
       "confirmed": "Confirmed",
@@ -203,13 +210,36 @@
   },
   "payments": {
     "title": "Payment Management",
+    "subtitle": "Manage and record customer payments",
     "create": "Record New Payment",
     "list": "Payment List",
-    "details": "Payment Details"
+    "details": "Payment Details",
+    "search_placeholder": "Search payments...",
+    "client": "Client",
+    "invoice": "Invoice",
+    "payment_reference": "Reference",
+    "amount": "Amount",
+    "date": "Date",
+    "status": "Status",
+    "actions": "Actions",
+    "add": "Add Payment",
+    "add_payment": "Add Payment",
+    "method": "Method",
+    "no_payments": "No payments found",
+    "no_payments_subtitle": "Start by adding your first payment",
+    "noData": "No payments yet"
   },
   "currency": {
     "symbol": "DZD",
     "name": "Algerian Dinar"
+  },
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "of": "of",
+    "showing": "Showing",
+    "to": "to",
+    "results": "results"
   },
   "common": {
     "actions": "Actions",

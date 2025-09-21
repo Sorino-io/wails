@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
+	"os"
 	"path/filepath"
+	"path"
 	"sort"
 	"strings"
 
@@ -20,7 +22,31 @@ type DB struct {
 
 // Connect opens a connection to SQLite database
 func Connect(dataSourceName string) (*DB, error) {
-	db, err := sql.Open("sqlite", dataSourceName)
+	// Ensure the directory for the database file exists
+	dir := filepath.Dir(dataSourceName)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create database directory: %w", err)
+		}
+	}
+
+	// Ensure the database file exists on disk to avoid lazy creation issues in packaged builds
+	if _, err := os.Stat(dataSourceName); os.IsNotExist(err) {
+		f, createErr := os.OpenFile(dataSourceName, os.O_RDWR|os.O_CREATE, 0644)
+		if createErr != nil {
+			return nil, fmt.Errorf("failed to create database file: %w", createErr)
+		}
+		_ = f.Close()
+	}
+
+	// Build a SQLite DSN that explicitly enables read/write/create mode
+	absPath, _ := filepath.Abs(dataSourceName)
+	// Convert Windows backslashes to forward slashes for the URI
+	uriPath := strings.ReplaceAll(absPath, "\\", "/")
+	// Construct DSN without over-escaping (sqlite accepts file:C:/... on Windows)
+	dsn := fmt.Sprintf("file:%s?mode=rwc&cache=shared", uriPath)
+
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -28,6 +54,15 @@ func Connect(dataSourceName string) (*DB, error) {
 	// Enable foreign keys
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+
+	// Improve concurrency and reduce locking issues
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		// Non-fatal: log via fmt, but continue
+		fmt.Printf("warning: failed to set journal_mode=WAL: %v\n", err)
+	}
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		fmt.Printf("warning: failed to set busy_timeout: %v\n", err)
 	}
 
 	// Set connection pool settings
@@ -163,7 +198,8 @@ func (db *DB) RunEmbeddedMigrations(embeddedFS embed.FS, migrationsDir string) e
 		}
 
 		// Read migration file from embedded filesystem
-		fullPath := filepath.Join(migrationsDir, migrationFile)
+	// Use forward-slash join for embedded FS paths
+	fullPath := path.Join(migrationsDir, migrationFile)
 		content, err := embeddedFS.ReadFile(fullPath)
 		if err != nil {
 			return fmt.Errorf("failed to read embedded migration file %s: %w", migrationFile, err)

@@ -89,9 +89,7 @@ const navigation = [
   { name: 'nav.clients', href: '/clients', icon: UsersIcon },
   { name: 'nav.products', href: '/products', icon: CubeIcon },
   { name: 'nav.orders', href: '/orders', icon: DocumentIcon },
-  { name: 'nav.invoices', href: '/invoices', icon: DocumentTextIcon },
   { name: 'nav.payments', href: '/payments', icon: CreditCardIcon },
-  { name: 'nav.settings', href: '/settings', icon: CogIcon },
 ]
 
 function toggleLanguage() {

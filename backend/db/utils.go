@@ -7,26 +7,22 @@ import (
 
 // CalcOrderTotals calculates order totals based on items, discount and tax percentages
 func CalcOrderTotals(items []OrderItem, discountPct, taxPct int) (subtotal, discount, tax, total int64) {
-	// Calculate subtotal
+	// Calculate subtotal and discount from items
 	for _, item := range items {
-		subtotal += item.TotalCents
+		itemSubtotal := item.TotalCents
+		itemDiscount := (itemSubtotal * int64(item.DiscountPercent)) / 100
+		subtotal += itemSubtotal
+		discount += itemDiscount
 	}
 
-	// Calculate discount
-	if discountPct > 0 && discountPct <= 100 {
-		discount = (subtotal * int64(discountPct)) / 100
-	}
-
-	// Calculate tax on (subtotal - discount)
-	taxableAmount := subtotal - discount
-	if taxPct > 0 && taxPct <= 100 {
-		tax = (taxableAmount * int64(taxPct)) / 100
-	}
+	// Apply order-level discount
+	orderDiscount := (subtotal * int64(discountPct)) / 100
+	discount += orderDiscount
 
 	// Calculate total
-	total = subtotal - discount + tax
+	total = subtotal - discount
 
-	return subtotal, discount, tax, total
+	return subtotal, discount, 0, total
 }
 
 // CalcInvoiceTotals calculates invoice totals based on items, discount and tax percentages
@@ -75,16 +71,16 @@ func FormatCents(cents int64) string {
 // FormatCurrency formats cents with currency symbol
 func FormatCurrency(cents int64, currency string) string {
 	amount := FormatCents(cents)
-	switch currency {
-	case "DZD":
-		return fmt.Sprintf("%s د.ج", amount)
-	case "USD":
-		return fmt.Sprintf("$%s", amount)
-	case "EUR":
-		return fmt.Sprintf("€%s", amount)
-	default:
-		return fmt.Sprintf("%s %s", amount, currency)
-	}
+	// switch currency {
+	// case "DZD":
+	return fmt.Sprintf("%s DZD", amount)
+	// case "USD":
+	// 	return fmt.Sprintf("$%s", amount)
+	// case "EUR":
+	// 	return fmt.Sprintf("€%s", amount)
+	// default:
+	// 	return fmt.Sprintf("%s %s", amount, currency)
+	// }
 }
 
 // ParseCentsFromFloat converts float to cents (e.g., 123.45 -> 12345)
@@ -131,10 +127,10 @@ func ValidateQuantity(qty int) error {
 	return nil
 }
 
-// ValidatePrice validates price in cents (must be non-negative)
+// ValidatePrice validates price in cents (must be strictly positive)
 func ValidatePrice(priceCents int64) error {
-	if priceCents < 0 {
-		return fmt.Errorf("price cannot be negative")
+	if priceCents <= 0 {
+		return fmt.Errorf("price must be greater than 0")
 	}
 	return nil
 }

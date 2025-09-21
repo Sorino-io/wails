@@ -32,11 +32,6 @@ const routes = [
     component: Orders
   },
   {
-    path: '/invoices',
-    name: 'Invoices',
-    component: Invoices
-  },
-  {
     path: '/payments',
     name: 'Payments',
     component: Payments

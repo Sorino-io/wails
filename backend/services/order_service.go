@@ -47,9 +47,6 @@ func (s *OrderService) Create(ctx context.Context, draft db.OrderDraft) (*db.Ord
 	if draft.DiscountPercent < 0 || draft.DiscountPercent > 100 {
 		draft.DiscountPercent = 0
 	}
-	if draft.TaxPercent < 0 || draft.TaxPercent > 100 {
-		draft.TaxPercent = 0
-	}
 
 	// Verify client exists
 	_, err := s.repo.GetClient(ctx, draft.ClientID)
@@ -119,9 +116,6 @@ func (s *OrderService) Update(ctx context.Context, update db.OrderUpdate) (*db.O
 	// Validate discount and tax percentages
 	if update.DiscountPercent != nil && (*update.DiscountPercent < 0 || *update.DiscountPercent > 100) {
 		return nil, fmt.Errorf("نسبة الخصم يجب أن تكون بين 0 و 100") // Discount percentage must be between 0 and 100
-	}
-	if update.TaxPercent != nil && (*update.TaxPercent < 0 || *update.TaxPercent > 100) {
-		return nil, fmt.Errorf("نسبة الضريبة يجب أن تكون بين 0 و 100") // Tax percentage must be between 0 and 100
 	}
 
 	return s.repo.UpdateOrder(ctx, update)
