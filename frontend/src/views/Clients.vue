@@ -69,18 +69,11 @@
                     <PencilIcon class="h-4 w-4" />
                   </button>
                   <button
-                    @click="openAdjustDebt(client, 'inc')"
-                    class="text-amber-600 hover:text-amber-800 p-1 rounded"
-                    :title="$t('clients.adjust_debt') + ' (+)'"
-                  >
-                    <ArrowUpIcon class="h-4 w-4" />
-                  </button>
-                  <button
-                    @click="openAdjustDebt(client, 'dec')"
-                    class="text-green-600 hover:text-green-800 p-1 rounded"
-                    :title="$t('clients.adjust_debt') + ' (-)'"
+                    @click="openAdjustDebt(client)"
+                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-800 hover:bg-green-200 border border-green-300 transition"
                   >
                     <ArrowDownIcon class="h-4 w-4" />
+                    <span>{{ $t('clients.adjust_debt') }}</span>
                   </button>
                 </div>
               </td>
@@ -180,21 +173,29 @@
 
             <div class="flex justify-between items-center pt-4">
               <div v-if="showEditModal">
-                <button type="button" @click="confirmDeleteClient" class="btn btn-danger">
-                  {{ $t('actions.delete') }}
+                <button
+                  type="button"
+                  @click="confirmDeleteClient"
+                  class="btn btn-danger"
+                >
+                  {{ $t("actions.delete") }}
                 </button>
               </div>
               <div class="flex space-x-3 space-x-reverse">
-              <button
-                type="button"
-                @click="closeModal"
-                class="btn btn-secondary"
-              >
-                {{ $t("actions.cancel") }}
-              </button>
-              <button type="submit" :disabled="loading" class="btn btn-primary">
-                {{ loading ? $t("messages.loading") : $t("actions.save") }}
-              </button>
+                <button
+                  type="button"
+                  @click="closeModal"
+                  class="btn btn-secondary"
+                >
+                  {{ $t("actions.cancel") }}
+                </button>
+                <button
+                  type="submit"
+                  :disabled="loading"
+                  class="btn btn-primary"
+                >
+                  {{ loading ? $t("messages.loading") : $t("actions.save") }}
+                </button>
               </div>
             </div>
           </form>
@@ -202,13 +203,31 @@
       </div>
     </div>
     <!-- Delete Confirm Modal -->
-    <div v-if="showDeleteClientConfirm" class="fixed inset-0 bg-gray-700 bg-opacity-60 flex items-center justify-center z-[70]">
+    <div
+      v-if="showDeleteClientConfirm"
+      class="fixed inset-0 bg-gray-700 bg-opacity-60 flex items-center justify-center z-[70]"
+    >
       <div class="bg-white rounded-md shadow p-6 w-full max-w-sm">
-        <h3 class="text-lg font-semibold mb-4">{{ $t('clients.delete_title') }}</h3>
-        <p class="text-sm text-gray-600 mb-6">{{ $t('clients.delete_confirm') }}</p>
+        <h3 class="text-lg font-semibold mb-4">
+          {{ $t("clients.delete_title") }}
+        </h3>
+        <p class="text-sm text-gray-600 mb-6">
+          {{ $t("clients.delete_confirm") }}
+        </p>
         <div class="flex justify-end space-x-3 space-x-reverse">
-          <button class="btn btn-secondary" @click="showDeleteClientConfirm=false">{{ $t('actions.cancel') }}</button>
-          <button class="btn btn-danger" @click="deleteClientNow" :disabled="loading">{{ $t('actions.delete') }}</button>
+          <button
+            class="btn btn-secondary"
+            @click="showDeleteClientConfirm = false"
+          >
+            {{ $t("actions.cancel") }}
+          </button>
+          <button
+            class="btn btn-danger"
+            @click="deleteClientNow"
+            :disabled="loading"
+          >
+            {{ $t("actions.delete") }}
+          </button>
         </div>
       </div>
     </div>
@@ -344,7 +363,8 @@ async function deleteClientNow() {
     await loadClients();
   } catch (e) {
     console.error(e);
-    errorMessage.value = e instanceof Error ? e.message : t('clients.delete_failed');
+    errorMessage.value =
+      e instanceof Error ? e.message : t("clients.delete_failed");
   } finally {
     loading.value = false;
   }
@@ -451,11 +471,12 @@ const showAdjustModal = ref(false);
 const showConfirmAdjustModal = ref(false);
 const adjustTarget = ref<any>(null);
 const adjustAmount = ref<number>(0);
-const adjustMode = ref<"inc" | "dec">("inc");
+// Only decreasing debt is allowed now
+const adjustMode = ref<"dec">("dec");
 
-function openAdjustDebt(client: any, mode: "inc" | "dec" = "inc") {
+function openAdjustDebt(client: any) {
   adjustTarget.value = client;
-  adjustMode.value = mode;
+  adjustMode.value = "dec";
   adjustAmount.value = 0;
   showAdjustModal.value = true;
 }
@@ -477,8 +498,7 @@ function cancelConfirmAdjust() {
 
 async function applyAdjustDebt() {
   if (!adjustTarget.value) return;
-  let delta = Math.round(adjustAmount.value * 100);
-  if (adjustMode.value === "dec") delta = -delta;
+  let delta = -Math.round(adjustAmount.value * 100); // always decrease
   if (delta === 0) {
     closeAdjustModal();
     showConfirmAdjustModal.value = false;

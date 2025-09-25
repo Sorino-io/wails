@@ -300,7 +300,6 @@
               <div>
                 <div class="flex items-center justify-between mb-4">
                   <label class="form-label">{{ $t("orders.items") }} *</label>
-                  
                 </div>
 
                 <div class="space-y-3">
@@ -417,18 +416,17 @@
                 </div>
               </div>
               <div class="flex">
-
                 <button
-                type="button"
-                @click="addOrderItem"
-                class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                  type="button"
+                  @click="addOrderItem"
+                  class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
                 >
-                {{ $t("orders.add_item") }}
-              </button>
-            </div>
+                  {{ $t("orders.add_item") }}
+                </button>
+              </div>
 
               <!-- Order Totals -->
-              <div class="border-t pt-4 ">
+              <div class="border-t pt-4">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label class="form-label">{{
@@ -567,13 +565,31 @@
     </div>
 
     <!-- Delete Order Confirm -->
-    <div v-if="showDeleteOrderConfirm" class="fixed inset-0 bg-gray-700 bg-opacity-60 flex items-center justify-center z-[70]">
+    <div
+      v-if="showDeleteOrderConfirm"
+      class="fixed inset-0 bg-gray-700 bg-opacity-60 flex items-center justify-center z-[70]"
+    >
       <div class="bg-white rounded-md shadow p-6 w-full max-w-sm">
-        <h3 class="text-lg font-semibold mb-4">{{ $t('orders.delete_title') }}</h3>
-        <p class="text-sm text-gray-600 mb-6">{{ $t('orders.delete_confirm') }}</p>
+        <h3 class="text-lg font-semibold mb-4">
+          {{ $t("orders.delete_title") }}
+        </h3>
+        <p class="text-sm text-gray-600 mb-6">
+          {{ $t("orders.delete_confirm") }}
+        </p>
         <div class="flex justify-end space-x-3 space-x-reverse">
-          <button class="btn btn-secondary" @click="showDeleteOrderConfirm=false">{{ $t('actions.cancel') }}</button>
-          <button class="btn btn-danger" @click="deleteOrderNow" :disabled="loading">{{ $t('actions.delete') }}</button>
+          <button
+            class="btn btn-secondary"
+            @click="showDeleteOrderConfirm = false"
+          >
+            {{ $t("actions.cancel") }}
+          </button>
+          <button
+            class="btn btn-danger"
+            @click="deleteOrderNow"
+            :disabled="loading"
+          >
+            {{ $t("actions.delete") }}
+          </button>
         </div>
       </div>
     </div>

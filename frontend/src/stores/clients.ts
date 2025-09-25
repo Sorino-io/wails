@@ -119,7 +119,7 @@ export const useClientStore = defineStore("clients", () => {
     error.value = null;
     try {
       await DeleteClient(id);
-      clients.value = clients.value.filter(c => c.id !== id);
+      clients.value = clients.value.filter((c) => c.id !== id);
     } catch (err) {
       console.error("Error deleting client:", err);
       error.value = err instanceof Error ? err.message : "فشل في حذف العميل";
