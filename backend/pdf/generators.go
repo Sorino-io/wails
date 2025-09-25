@@ -204,27 +204,36 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 		arabicCell(60, 7, item.NameSnapshot, "1", 1, false, 0)
 	}
 
-	// Totals (RTL)
+	// Totals (RTL) - Order of presentation required:
+	// 1) Order total after discount
+	// 2) Client previous debt (snapshot if available)
+	// 3) Combined (order total + previous debt)
 	pdf.Ln(5)
 	pdf.SetFont("Amiri", "", 10)
-	subtotal, discount, _, total := db.CalcOrderTotals(orderDetail.Items, 0, 0)
-	ltrCell(35, 7, db.FormatCurrency(subtotal, "USD"), "1", 0, false, 0)
-	arabicCell(135, 7, "المجموع:", "", 1, false, 0)
+	_, discount, _, total := db.CalcOrderTotals(orderDetail.Items, 0, 0)
 	if discount > 0 {
 		ltrCell(35, 7, fmt.Sprintf("-%s", db.FormatCurrency(discount, "USD")), "1", 0, false, 0)
 		arabicCell(135, 7, "الخصم:", "", 1, false, 0)
 	}
+	// Line 1: Order total after discount
 	pdf.SetFont("Amiri", "", 12)
 	ltrCell(35, 8, db.FormatCurrency(total, "USD"), "1", 0, false, 0)
-	arabicCell(135, 8, "الإجمالي:", "", 1, false, 0)
+	arabicCell(135, 8, "مجموع الطلب:", "", 1, false, 0)
 
-	// Show client debt snapshot (historical) if captured; fallback to current debt
+	// Line 2: Previous client debt (snapshot preferred)
 	debtToShow := orderDetail.Client.DebtCents
 	if orderDetail.Order.ClientDebtSnapshotCents != nil {
 		debtToShow = *orderDetail.Order.ClientDebtSnapshotCents
 	}
+	pdf.SetFont("Amiri", "", 11)
 	ltrCell(35, 8, db.FormatCurrency(debtToShow, "USD"), "1", 0, false, 0)
-	arabicCell(135, 8, "ديون العميل:", "", 1, false, 0)
+	arabicCell(135, 8, "دين سابق للعميل:", "", 1, false, 0)
+
+	// Line 3: Combined total (order total + previous debt)
+	combined := total + debtToShow
+	pdf.SetFont("Amiri", "", 12)
+	ltrCell(35, 8, db.FormatCurrency(combined, "USD"), "1", 0, false, 0)
+	arabicCell(135, 8, "الإجمالي مع الدين:", "", 1, false, 0)
 
 	// Notes (RTL)
 	if orderDetail.Order.Notes != nil && *orderDetail.Order.Notes != "" {
