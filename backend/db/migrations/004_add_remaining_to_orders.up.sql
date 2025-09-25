@@ -1,0 +1,1 @@
+ALTER TABLE "order" ADD COLUMN remaining_cents INTEGER NOT NULL DEFAULT 0;

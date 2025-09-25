@@ -83,7 +83,7 @@ func (r *Repository) ListClients(ctx context.Context, query string, limit, offse
 
 	for rows.Next() {
 		var client Client
-	err := rows.Scan(&client.ID, &client.Name, &client.Phone, &client.Address, &client.DebtCents, &client.CreatedAt, &client.UpdatedAt)
+		err := rows.Scan(&client.ID, &client.Name, &client.Phone, &client.Address, &client.DebtCents, &client.CreatedAt, &client.UpdatedAt)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan client: %w", err)
 		}
@@ -233,6 +233,13 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		issueDate = *draft.IssueDate
 	}
 
+	// Get client's current debt
+	var clientDebtCents int64
+	err = tx.QueryRowContext(ctx, `SELECT debt_cents FROM client WHERE id = ?`, draft.ClientID).Scan(&clientDebtCents)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client debt: %w", err)
+	}
+
 	// Create order
 	orderQuery := `
 		INSERT INTO "order" (order_number, client_id, status, notes, discount_percent, issue_date, due_date, created_at, updated_at)
@@ -277,6 +284,11 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		}
 	}
 
+	// Set remaining cents on order
+	if _, err := tx.ExecContext(ctx, `UPDATE "order" SET remaining_cents = ? WHERE id = ?`, orderTotalCents, orderID); err != nil {
+		return nil, fmt.Errorf("failed to update order remaining_cents: %w", err)
+	}
+
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
@@ -293,6 +305,7 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		IssueDate:       issueDate,
 		DueDate:         draft.DueDate,
 		CreatedAt:       time.Now(),
+		RemainingCents:  orderTotalCents,
 	}
 
 	return order, nil
@@ -345,7 +358,7 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 			SELECT 
 				o.id, o.order_number, o.client_id, o.status, o.notes, 
 				o.discount_percent, o.issue_date, o.due_date,
-				o.created_at, o.updated_at,
+				o.created_at, o.updated_at, o.remaining_cents,
 				c.id, c.name, c.phone, c.address, c.debt_cents, c.created_at, c.updated_at
 			FROM "order" o
 			JOIN client c ON o.client_id = c.id
@@ -369,7 +382,7 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 		err := rows.Scan(
 			&order.Order.ID, &order.Order.OrderNumber, &order.Order.ClientID, &order.Order.Status,
 			&order.Order.Notes, &order.Order.DiscountPercent,
-			&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt,
+			&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt, &order.Order.RemainingCents,
 			&order.Client.ID, &order.Client.Name, &order.Client.Phone,
 			&order.Client.Address, &order.Client.DebtCents, &order.Client.CreatedAt, &order.Client.UpdatedAt,
 		)
@@ -403,7 +416,7 @@ func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail
 		SELECT 
 			o.id, o.order_number, o.client_id, o.status, o.notes, 
 			o.discount_percent, o.issue_date, o.due_date,
-			o.created_at, o.updated_at,
+			o.created_at, o.updated_at, o.remaining_cents,
 			c.id, c.name, c.phone, c.address, c.debt_cents, c.created_at, c.updated_at
 		FROM "order" o
 		JOIN client c ON o.client_id = c.id
@@ -414,7 +427,7 @@ func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&order.Order.ID, &order.Order.OrderNumber, &order.Order.ClientID, &order.Order.Status,
 		&order.Order.Notes, &order.Order.DiscountPercent,
-		&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt,
+		&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt, &order.Order.RemainingCents,
 		&order.Client.ID, &order.Client.Name, &order.Client.Phone,
 		&order.Client.Address, &order.Client.DebtCents, &order.Client.CreatedAt, &order.Client.UpdatedAt,
 	)
@@ -676,6 +689,7 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 	}
 
 	// Update items if provided
+	var orderTotalCents int64
 	if len(update.Items) > 0 {
 		// Delete existing items
 		_, err = tx.ExecContext(ctx, `DELETE FROM order_item WHERE order_id = ?`, update.ID)
@@ -686,6 +700,7 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 		// Insert new items
 		for _, item := range update.Items {
 			totalCents := int64(item.Qty) * item.UnitPriceCents
+			orderTotalCents += totalCents - (totalCents*int64(item.DiscountPercent))/100
 			itemQuery := `
 				INSERT INTO order_item (order_id, product_id, name_snapshot, sku_snapshot, qty, unit_price_cents, discount_percent, currency, total_cents)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -698,6 +713,18 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 		}
 	}
 
+	// Apply order-level discount
+	if update.DiscountPercent != nil {
+		if *update.DiscountPercent > 0 && *update.DiscountPercent <= 100 {
+			orderTotalCents = orderTotalCents - (orderTotalCents*int64(*update.DiscountPercent))/100
+		}
+	}
+
+	// Set remaining cents on order
+	if _, err := tx.ExecContext(ctx, `UPDATE "order" SET remaining_cents = ? WHERE id = ?`, orderTotalCents, update.ID); err != nil {
+		return nil, fmt.Errorf("failed to update order remaining_cents: %w", err)
+	}
+
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
@@ -705,11 +732,11 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 
 	// Get updated order
 	var order Order
-	query := `SELECT id, order_number, client_id, status, notes, discount_percent, issue_date, due_date, created_at, updated_at FROM "order" WHERE id = ?`
+	query := `SELECT id, order_number, client_id, status, notes, discount_percent, issue_date, due_date, created_at, updated_at, remaining_cents FROM "order" WHERE id = ?`
 	err = r.db.QueryRowContext(ctx, query, update.ID).Scan(
 		&order.ID, &order.OrderNumber, &order.ClientID, &order.Status, &order.Notes,
 		&order.DiscountPercent, &order.IssueDate, &order.DueDate,
-		&order.CreatedAt, &order.UpdatedAt,
+		&order.CreatedAt, &order.UpdatedAt, &order.RemainingCents,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get updated order: %w", err)

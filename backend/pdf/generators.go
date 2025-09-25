@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"myproject/backend/db"
 	"os"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/01walid/goarabic"
 	"github.com/go-pdf/fpdf"
@@ -80,8 +82,31 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 
 	// Helper for Arabic text (RTL)
 	arabicCell := func(w, h float64, txt string, borderStr string, ln int, fill bool, link int) {
-		txt = goarabic.Reverse(goarabic.ToGlyph(txt))
-		pdf.CellFormat(w, h, txt, borderStr, ln, "R", fill, link, "")
+		shapedTxt := goarabic.ToGlyph(txt)
+		words := strings.Split(shapedTxt, " ")
+
+		// Reverse the order of words for RTL layout
+		for i, j := 0, len(words)-1; i < j; i, j = i+1, j-1 {
+			words[i], words[j] = words[j], words[i]
+		}
+
+		// Reverse individual words if they are Arabic
+		for i, word := range words {
+			isArabic := false
+			for _, r := range word {
+				if unicode.Is(unicode.Arabic, r) {
+					isArabic = true
+					break
+				}
+			}
+
+			if isArabic {
+				words[i] = goarabic.Reverse(word)
+			}
+		}
+
+		processedTxt := strings.Join(words, " ")
+		pdf.CellFormat(w, h, processedTxt, borderStr, ln, "R", fill, link, "")
 	}
 	ltrCell := func(w, h float64, txt string, borderStr string, ln int, fill bool, link int) {
 		pdf.CellFormat(w, h, txt, borderStr, ln, "L", fill, link, "")
@@ -111,7 +136,7 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 
 	// Header
 	pdf.SetXY(120, 20)
-	arabicCell(70, 10, "مصنع البركة للأنواني", "", 1, false, 0)
+	arabicCell(70, 10, "البركة لللإنتاج الصناعي للأدوات المنزلية", "", 1, false, 0)
 
 	// Client and Order Information
 	y := pdf.GetY()
@@ -122,7 +147,8 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	// Client Information
 	pdf.SetXY(20, y)
 	pdf.SetFont("Amiri", "", 12)
-	arabicCell(70, 8, "معلومات العميل:", "", 2, false, 0)
+	arabicLabelLtrValueCell(70, 7, "تاريخ الإصدار: ", orderDetail.Order.IssueDate.Format("2006-01-02"))
+	arabicCell(70, 8, "مطلوب من العميل :", "", 2, false, 0)
 	pdf.SetFont("Amiri", "", 10)
 	arabicCell(70, 6, "الاسم: "+orderDetail.Client.Name, "", 2, false, 0)
 	if orderDetail.Client.Phone != nil {
@@ -139,12 +165,14 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	// Order Information (fully right-aligned)
 	pdf.SetXY(120, y)
 	pdf.SetFont("Amiri", "", 12)
+	arabicLabelLtrValueCell(70, 8, "الهاتف : ", "032 23 19 99")
 	arabicLabelLtrValueCell(70, 8, "رقم الطلب: ", orderDetail.Order.OrderNumber)
-	arabicLabelLtrValueCell(70, 7, "تاريخ الإصدار: ", orderDetail.Order.IssueDate.Format("2006-01-02"))
+	arabicLabelLtrValueCell(70, 7, "البريد الإلكتروني : ", "elbarakaaouani@gmail.com")
+	arabicLabelLtrValueCell(70, 7, "العنوان والرمز البريدي : قمار ولاية الوادي ص.ب  : ", "39400-331")
 	if orderDetail.Order.DueDate != nil {
 		arabicLabelLtrValueCell(70, 7, "تاريخ الاستحقاق: ", orderDetail.Order.DueDate.Format("2006-01-02"))
 	}
-	arabicLabelLtrValueCell(70, 7, "الحالة: ", orderDetail.Order.Status)
+	// arabicLabelLtrValueCell(70, 7, "الحالة: ", orderDetail.Order.Status)
 	yOrder := pdf.GetY()
 
 	if yClient > yOrder {
@@ -161,7 +189,7 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	arabicCell(30, 8, "الخصم", "1", 0, true, 0)
 	arabicCell(30, 8, "سعر الوحدة", "1", 0, true, 0)
 	arabicCell(20, 8, "الكمية", "1", 0, true, 0)
-	arabicCell(60, 8, "الوصف", "1", 1, true, 0)
+	arabicCell(60, 8, "التعيين", "1", 1, true, 0)
 
 	// Items (RTL)
 	pdf.SetFont("Amiri", "", 9)
@@ -189,6 +217,10 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	pdf.SetFont("Amiri", "", 12)
 	ltrCell(35, 8, db.FormatCurrency(total, "USD"), "1", 0, false, 0)
 	arabicCell(135, 8, "الإجمالي:", "", 1, false, 0)
+
+	remaining := orderDetail.Order.RemainingCents + total
+	ltrCell(35, 8, db.FormatCurrency(remaining, "USD"), "1", 0, false, 0)
+	arabicCell(135, 8, "الدين :", "", 1, false, 0)
 
 	// Notes (RTL)
 	if orderDetail.Order.Notes != nil && *orderDetail.Order.Notes != "" {

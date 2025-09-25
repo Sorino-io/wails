@@ -72,6 +72,11 @@
                 <th
                   class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
+                  {{ $t("orders.remaining") }}
+                </th>
+                <th
+                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   {{ $t("orders.date") }}
                 </th>
                 <th
@@ -127,6 +132,11 @@
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                   <div class="text-sm text-gray-900">
                     {{ formatPrice(order.total_cents || 0) }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                  <div class="text-sm text-gray-900">
+                    {{ formatPrice(order.order.remaining_cents || 0) }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
@@ -293,13 +303,7 @@
               <div>
                 <div class="flex items-center justify-between mb-4">
                   <label class="form-label">{{ $t("orders.items") }} *</label>
-                  <button
-                    type="button"
-                    @click="addOrderItem"
-                    class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
-                  >
-                    {{ $t("orders.add_item") }}
-                  </button>
+                  
                 </div>
 
                 <div class="space-y-3">
@@ -415,9 +419,19 @@
                   </div>
                 </div>
               </div>
+              <div class="flex">
+
+                <button
+                type="button"
+                @click="addOrderItem"
+                class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                >
+                {{ $t("orders.add_item") }}
+              </button>
+            </div>
 
               <!-- Order Totals -->
-              <div class="border-t pt-4">
+              <div class="border-t pt-4 ">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label class="form-label">{{
