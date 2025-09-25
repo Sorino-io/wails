@@ -176,6 +176,8 @@
     "quantity": "Quantity",
     "unit_price": "Unit Price",
     "discount_percent": "Discount %",
+    "global_discount_percent": "Global Discount %",
+    "apply_global_discount": "Apply to all items",
     "tax_percent": "Tax %",
     "notes": "Notes",
     "notes_placeholder": "Order notes...",

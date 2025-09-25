@@ -177,6 +177,8 @@
     "quantity": "الكمية",
     "unit_price": "سعر الوحدة",
     "discount_percent": "نسبة الخصم",
+    "global_discount_percent": "خصم شامل %",
+    "apply_global_discount": "تطبيق على كل العناصر",
     "tax_percent": "نسبة الضريبة",
     "notes": "ملاحظات",
     "notes_placeholder": "أدخل ملاحظاتك هنا...",

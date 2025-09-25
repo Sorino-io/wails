@@ -392,6 +392,7 @@
                           min="0"
                           max="100"
                           class="form-input text-sm"
+                          @input="touchedItemDiscounts.value.add(index)"
                         />
                       </div>
 
@@ -597,7 +598,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   MagnifyingGlassIcon,
@@ -660,6 +661,10 @@ const newOrder = ref({
     productSearch: string;
   }>,
 });
+
+// Track item indices whose discount was manually changed (won't be auto-updated)
+// Use any to avoid template type inference issues with Set in script setup
+const touchedItemDiscounts = ref<any>(new Set<number>());
 
 // Detail and edit state
 const showDetailModal = ref(false);
@@ -816,6 +821,7 @@ const closeCreateModal = () => {
     discount_percent: 0,
     items: [],
   };
+  touchedItemDiscounts.value.clear();
   // Reset search states
   clientSearch.value = "";
   showClientDropdown.value = false;
@@ -839,6 +845,11 @@ const addOrderItem = () => {
   // Initialize dropdown state for new item
   showProductDropdown.value[newIndex] = false;
   filteredProducts.value[newIndex] = [];
+  // Inherit current order-level discount if set > 0
+  if (newOrder.value.discount_percent > 0) {
+    newOrder.value.items[newIndex].discount_percent =
+      newOrder.value.discount_percent;
+  }
 };
 
 const removeOrderItem = (index: number) => {
@@ -922,9 +933,26 @@ const calculateOrderTotal = () => {
     const itemTotal = item.qty * item.unit_price * 100;
     return sum + itemTotal * (item.discount_percent / 100);
   }, 0);
-
-  return subtotal - itemDiscounts;
+  const afterItemDiscounts = subtotal - itemDiscounts;
+  const orderLevelDiscount =
+    newOrder.value.discount_percent > 0
+      ? (afterItemDiscounts * newOrder.value.discount_percent) / 100
+      : 0;
+  return afterItemDiscounts - orderLevelDiscount;
 };
+
+// Propagate order-level discount changes to items that weren't manually adjusted
+watch(
+  () => newOrder.value.discount_percent,
+  (newVal, oldVal) => {
+    if (newVal === oldVal) return;
+    newOrder.value.items.forEach((item, idx) => {
+      if (!touchedItemDiscounts.value.has(idx)) {
+        item.discount_percent = newVal || 0;
+      }
+    });
+  }
+);
 
 const saveOrderInternal = async (exportAfterSave: boolean) => {
   try {
