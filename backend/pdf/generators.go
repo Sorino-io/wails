@@ -69,7 +69,8 @@ func NewOrderPDFGenerator() *OrderPDFGenerator {
 // GenerateOrderPDF generates a PDF for the given order
 func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
-	pdf.SetMargins(20, 20, 20)
+	// Further reduced top margin to move header even higher
+	pdf.SetMargins(20, 8, 20)
 	pdf.SetAutoPageBreak(true, 20)
 	pdf.AddPage()
 
@@ -134,43 +135,39 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 		pdf.SetXY(x, y+h)
 	}
 
-	// Header
-	pdf.SetXY(120, 20)
-	arabicCell(70, 10, "البركة لللإنتاج الصناعي للأدوات المنزلية", "", 1, false, 0)
+	// Header (moved further upward & tighter line height)
+	pdf.SetXY(120, 8)
+	arabicCell(70, 7, "البركة لللإنتاج الصناعي للأدوات المنزلية", "", 1, false, 0)
 
-	// Client and Order Information
+	// Client and Order Information (start directly after header, no artificial min Y)
 	y := pdf.GetY()
-	if y < 35 {
-		y = 35
-	}
 
 	// Client Information
 	pdf.SetXY(20, y)
 	pdf.SetFont("Amiri", "", 12)
-	arabicLabelLtrValueCell(70, 7, "تاريخ الإصدار: ", orderDetail.Order.IssueDate.Format("2006-01-02"))
-	arabicCell(70, 8, "مطلوب من العميل :", "", 2, false, 0)
+	arabicLabelLtrValueCell(70, 5.5, "تاريخ الإصدار: ", orderDetail.Order.IssueDate.Format("2006-01-02"))
+	arabicCell(70, 6, "مطلوب من العميل :", "", 2, false, 0)
 	pdf.SetFont("Amiri", "", 10)
-	arabicCell(70, 6, "الاسم: "+orderDetail.Client.Name, "", 2, false, 0)
+	arabicCell(70, 5, "الاسم: "+orderDetail.Client.Name, "", 2, false, 0)
 	if orderDetail.Client.Phone != nil {
-		arabicLabelLtrValueCell(70, 6, "الهاتف: ", *orderDetail.Client.Phone)
+		arabicLabelLtrValueCell(70, 5, "الهاتف: ", *orderDetail.Client.Phone)
 	}
 	// if orderDetail.Client.Email != nil {
 	// 	arabicLabelLtrValueCell(70, 6, "البريد الإلكتروني: ", *orderDetail.Client.Email)
 	// }
 	if orderDetail.Client.Address != nil {
-		arabicCell(70, 6, "العنوان: "+*orderDetail.Client.Address, "", 2, false, 0)
+		arabicCell(70, 5, "العنوان: "+*orderDetail.Client.Address, "", 2, false, 0)
 	}
 	yClient := pdf.GetY()
 
 	// Order Information (fully right-aligned)
 	pdf.SetXY(120, y)
 	pdf.SetFont("Amiri", "", 12)
-	arabicLabelLtrValueCell(70, 8, "الهاتف : ", "032 23 19 99")
-	arabicLabelLtrValueCell(70, 8, "رقم الطلب: ", orderDetail.Order.OrderNumber)
-	arabicLabelLtrValueCell(70, 7, "البريد الإلكتروني : ", "elbarakaaouani@gmail.com")
-	arabicLabelLtrValueCell(70, 7, "العنوان والرمز البريدي : قمار ولاية الوادي ص.ب  : ", "39400-331")
+	arabicLabelLtrValueCell(70, 5.5, "الهاتف : ", "032 23 19 99")
+	arabicLabelLtrValueCell(70, 5.5, "رقم الطلب: ", orderDetail.Order.OrderNumber)
+	arabicLabelLtrValueCell(70, 5.5, "العنوان والرمز البريدي : قمار ولاية الوادي ص.ب  : ", "39400-331")
 	if orderDetail.Order.DueDate != nil {
-		arabicLabelLtrValueCell(70, 7, "تاريخ الاستحقاق: ", orderDetail.Order.DueDate.Format("2006-01-02"))
+		arabicLabelLtrValueCell(70, 5.5, "تاريخ الاستحقاق: ", orderDetail.Order.DueDate.Format("2006-01-02"))
 	}
 	// arabicLabelLtrValueCell(70, 7, "الحالة: ", orderDetail.Order.Status)
 	yOrder := pdf.GetY()
