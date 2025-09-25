@@ -127,26 +127,16 @@ func (s *OrderService) Delete(ctx context.Context, id int64) error {
 		return fmt.Errorf("معرف الطلب غير صحيح") // Invalid order ID
 	}
 
-	// Check if order exists
+	// Check if order exists to validate status
 	orderDetail, err := s.repo.GetOrderDetail(ctx, id)
-	if err != nil {
-		return fmt.Errorf("الطلب غير موجود") // Order not found
-	}
-
-	// Don't allow deletion of completed orders
+	if err != nil { return fmt.Errorf("الطلب غير موجود") }
 	if orderDetail.Order.Status == db.OrderStatusCompleted {
-		return fmt.Errorf("لا يمكن حذف طلب مكتمل") // Cannot delete completed order
+		return fmt.Errorf("لا يمكن حذف طلب مكتمل")
 	}
 
-	// Cancel the order instead of hard delete
-	status := db.OrderStatusCanceled
-	update := db.OrderUpdate{
-		ID:     id,
-		Status: &status,
-	}
-
-	_, err = s.repo.UpdateOrder(ctx, update)
-	return err
+	_, errAdj := s.repo.CancelOrderAndAdjustDebt(ctx, id)
+	if errAdj != nil { return errAdj }
+	return nil
 }
 
 // GetOrderStatuses returns available order statuses

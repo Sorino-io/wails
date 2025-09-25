@@ -22,8 +22,16 @@ export function DebugSchema() {
   return window['go']['main']['App']['DebugSchema']();
 }
 
+export function DeleteClient(arg1) {
+  return window['go']['main']['App']['DeleteClient'](arg1);
+}
+
 export function DeleteOrder(arg1) {
   return window['go']['main']['App']['DeleteOrder'](arg1);
+}
+
+export function DeleteProduct(arg1) {
+  return window['go']['main']['App']['DeleteProduct'](arg1);
 }
 
 export function ExportOrderPDF(arg1) {

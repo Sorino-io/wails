@@ -118,6 +118,18 @@ func (r *Repository) UpdateClient(ctx context.Context, client Client) (*Client, 
 	return r.GetClient(ctx, client.ID)
 }
 
+// DeleteClient attempts to delete a client. It will fail if FK constraints (orders/invoices) reference it.
+func (r *Repository) DeleteClient(ctx context.Context, id int64) error {
+	// Quick existence check
+	if _, err := r.GetClient(ctx, id); err != nil { return err }
+	// Attempt delete (will error if referenced due to foreign keys)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM client WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete client: %w", err)
+	}
+	return nil
+}
+
 // Product operations
 
 func (r *Repository) CreateProduct(ctx context.Context, product Product) (*Product, error) {
@@ -222,6 +234,16 @@ func (r *Repository) UpdateProduct(ctx context.Context, product Product) (*Produ
 	return r.GetProduct(ctx, product.ID)
 }
 
+// DeleteProduct deletes a product (will not delete existing order/invoice snapshots since they store name/sku snapshots)
+func (r *Repository) DeleteProduct(ctx context.Context, id int64) error {
+	if _, err := r.GetProduct(ctx, id); err != nil { return err }
+	_, err := r.db.ExecContext(ctx, `DELETE FROM product WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete product: %w", err)
+	}
+	return nil
+}
+
 // Order operations (simplified - full implementation would include items handling)
 
 func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order, error) {
@@ -323,6 +345,121 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 
 	fmt.Printf("[CreateOrder] SUCCESS order_id=%d total=%d items=%d\n", order.ID, orderTotalCents, len(draft.Items))
 	return order, nil
+}
+
+// CancelOrderAndAdjustDebt sets order status to CANCELED and subtracts its total from client's debt if no invoices/payments exist.
+// It returns the amount subtracted (could be 0 if invoices/payments prevent adjustment).
+func (r *Repository) CancelOrderAndAdjustDebt(ctx context.Context, orderID int64) (int64, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil { return 0, fmt.Errorf("begin tx: %w", err) }
+	defer tx.Rollback()
+
+	// Load order + items and client id
+	var status string
+	var clientID int64
+	err = tx.QueryRowContext(ctx, `SELECT status, client_id FROM "order" WHERE id = ?`, orderID).Scan(&status, &clientID)
+	if err != nil {
+		if err == sql.ErrNoRows { return 0, fmt.Errorf("order not found") }
+		return 0, fmt.Errorf("load order: %w", err)
+	}
+	if status == OrderStatusCanceled { // already canceled
+		return 0, nil
+	}
+
+	// Compute order total (same logic used in listing)
+	rows, err := tx.QueryContext(ctx, `SELECT qty, unit_price_cents, discount_percent FROM order_item WHERE order_id = ?`, orderID)
+	if err != nil { return 0, fmt.Errorf("query items: %w", err) }
+	defer rows.Close()
+	var total int64
+	for rows.Next() {
+		var qty int32; var price int64; var disc int32
+		if err := rows.Scan(&qty, &price, &disc); err != nil { return 0, fmt.Errorf("scan item: %w", err) }
+		line := int64(qty) * price
+		line = line - (line*int64(disc))/100
+		total += line
+	}
+
+	// Apply order-level discount
+	var orderDiscount int64
+	if err := tx.QueryRowContext(ctx, `SELECT discount_percent FROM "order" WHERE id = ?`, orderID).Scan(&orderDiscount); err != nil {
+		return 0, fmt.Errorf("load order discount: %w", err)
+	}
+	if orderDiscount > 0 && orderDiscount <= 100 {
+		total = total - (total*orderDiscount)/100
+	}
+
+	// Check for invoices/payments referencing this order
+	var invoiceCount int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM invoice WHERE order_id = ?`, orderID).Scan(&invoiceCount); err != nil {
+		return 0, fmt.Errorf("count invoices: %w", err)
+	}
+	var paymentCount int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(p.id) FROM payment p JOIN invoice i ON p.invoice_id = i.id WHERE i.order_id = ?`, orderID).Scan(&paymentCount); err != nil {
+		return 0, fmt.Errorf("count payments: %w", err)
+	}
+
+	// Update order status
+	if _, err := tx.ExecContext(ctx, `UPDATE "order" SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, OrderStatusCanceled, orderID); err != nil {
+		return 0, fmt.Errorf("update order: %w", err)
+	}
+
+	var adjusted int64
+	if invoiceCount == 0 && paymentCount == 0 && total > 0 { // Safe to roll back debt
+		if _, err := tx.ExecContext(ctx, `UPDATE client SET debt_cents = CASE WHEN debt_cents - ? < 0 THEN 0 ELSE debt_cents - ? END, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, total, total, clientID); err != nil {
+			return 0, fmt.Errorf("adjust debt: %w", err)
+		}
+		adjusted = total
+	}
+
+	if err := tx.Commit(); err != nil { return 0, fmt.Errorf("commit: %w", err) }
+	return adjusted, nil
+}
+
+// DeleteCanceledOrdersForClient removes all canceled orders (and their items) for a client. Returns count removed.
+func (r *Repository) DeleteCanceledOrdersForClient(ctx context.Context, clientID int64) (int64, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil { return 0, fmt.Errorf("begin tx: %w", err) }
+	defer tx.Rollback()
+
+	// Collect canceled order ids
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM "order" WHERE client_id = ? AND status = ?`, clientID, OrderStatusCanceled)
+	if err != nil { return 0, fmt.Errorf("query canceled orders: %w", err) }
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() { var oid int64; if err := rows.Scan(&oid); err != nil { return 0, err }; ids = append(ids, oid) }
+	if len(ids) == 0 { return 0, nil }
+
+	// Delete items then orders
+	// Use IN clause. For large sets we could chunk, but expected small.
+	placeholders := ""
+	for i := range ids { if i>0 { placeholders += "," }; placeholders += "?" }
+	args := make([]interface{}, len(ids))
+	for i,v := range ids { args[i] = v }
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM order_item WHERE order_id IN (%s)`, placeholders), args...); err != nil {
+		return 0, fmt.Errorf("delete items: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM "order" WHERE id IN (%s)`, placeholders), args...); err != nil {
+		return 0, fmt.Errorf("delete orders: %w", err)
+	}
+	if err := tx.Commit(); err != nil { return 0, fmt.Errorf("commit: %w", err) }
+	return int64(len(ids)), nil
+}
+
+// ProductOrderUsageStats returns counts of total and active (non-canceled) orders referencing a product
+func (r *Repository) ProductOrderUsageStats(ctx context.Context, productID int64) (total int64, active int64, err error) {
+	queryTotal := `SELECT COUNT(*) FROM order_item WHERE product_id = ?`
+	if err = r.db.QueryRowContext(ctx, queryTotal, productID).Scan(&total); err != nil { return }
+	queryActive := `SELECT COUNT(DISTINCT o.id) FROM order_item oi JOIN "order" o ON oi.order_id = o.id WHERE oi.product_id = ? AND o.status != ?`
+	if err = r.db.QueryRowContext(ctx, queryActive, productID, OrderStatusCanceled).Scan(&active); err != nil { return }
+	return
+}
+
+// HasActiveOrdersForClient returns true if client has any non-canceled orders
+func (r *Repository) HasActiveOrdersForClient(ctx context.Context, clientID int64) (bool, error) {
+	var count int64
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "order" WHERE client_id = ? AND status != ?`, clientID, OrderStatusCanceled).Scan(&count)
+	if err != nil { return false, fmt.Errorf("check active orders: %w", err) }
+	return count > 0, nil
 }
 
 // DebugSchema returns a map of table -> columns for diagnostics

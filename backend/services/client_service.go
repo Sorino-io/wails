@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"myproject/backend/db"
+	"strings"
 )
 
 // ClientService handles client-related business logic
@@ -87,4 +88,34 @@ func (s *ClientService) AdjustDebt(ctx context.Context, clientID int64, deltaCen
 	}
 	client.DebtCents = newDebt
 	return s.repo.UpdateClient(ctx, *client)
+}
+
+// Delete removes a client if no restricting relations block it
+func (s *ClientService) Delete(ctx context.Context, id int64) error {
+	if id <= 0 { return fmt.Errorf("معرف العميل غير صحيح") }
+	// Check existence
+	if _, err := s.repo.GetClient(ctx, id); err != nil { return fmt.Errorf("العميل غير موجود") }
+	// First attempt delete
+	// Ensure no active (non-canceled) orders remain
+	if hasActive, errAct := s.repo.HasActiveOrdersForClient(ctx, id); errAct != nil {
+		return fmt.Errorf("تعذر التحقق من الطلبات النشطة: %v", errAct)
+	} else if hasActive {
+		return fmt.Errorf("لا يمكن حذف العميل لوجود طلبات غير ملغاة")
+	}
+	if err := s.repo.DeleteClient(ctx, id); err != nil {
+		// If FK constraint blocks, attempt to remove canceled orders then retry
+		errStr := err.Error()
+		if strings.Contains(errStr, "FOREIGN KEY") || strings.Contains(errStr, "foreign key") {
+			// Remove canceled orders
+			_, delErr := s.repo.DeleteCanceledOrdersForClient(ctx, id)
+			if delErr != nil { return fmt.Errorf("تعذر حذف الطلبات الملغاة للعميل: %v", delErr) }
+			// Retry delete
+			if err2 := s.repo.DeleteClient(ctx, id); err2 != nil {
+				return fmt.Errorf("لا يمكن حذف العميل لوجود طلبات أو فواتير نشطة")
+			}
+			return nil
+		}
+		return err
+	}
+	return nil
 }

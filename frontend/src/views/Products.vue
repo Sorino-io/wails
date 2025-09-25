@@ -136,6 +136,16 @@
             {{ showCreateModal ? $t("products.create") : $t("products.edit") }}
           </h3>
 
+          <!-- Error Message -->
+          <div v-if="errorMessage" class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {{ errorMessage }}
+          </div>
+
+          <!-- Success Message -->
+          <div v-if="successMessage" class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+            {{ successMessage }}
+          </div>
+
           <form @submit.prevent="saveProduct" class="space-y-4">
             <div>
               <label class="form-label">{{ $t("fields.name") }} *</label>
@@ -177,7 +187,11 @@
               />
             </div>
 
-            <div class="flex justify-end space-x-3 space-x-reverse pt-4">
+            <div class="flex justify-between items-center pt-4">
+              <div v-if="showEditModal">
+                <button type="button" @click="confirmDeleteProduct" class="btn btn-danger">{{ $t('actions.delete') }}</button>
+              </div>
+              <div class="flex space-x-3 space-x-reverse">
               <button
                 type="button"
                 @click="closeModal"
@@ -192,8 +206,20 @@
               >
                 {{ loading ? $t("messages.loading") : $t("actions.save") }}
               </button>
+              </div>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+    <!-- Delete Product Confirm -->
+    <div v-if="showDeleteProductConfirm" class="fixed inset-0 bg-gray-700 bg-opacity-60 flex items-center justify-center z-[70]">
+      <div class="bg-white rounded-md shadow p-6 w-full max-w-sm">
+        <h3 class="text-lg font-semibold mb-4">{{ $t('products.delete_title') }}</h3>
+        <p class="text-sm text-gray-600 mb-6">{{ $t('products.delete_confirm') }}</p>
+        <div class="flex justify-end space-x-3 space-x-reverse">
+          <button class="btn btn-secondary" @click="showDeleteProductConfirm=false">{{ $t('actions.cancel') }}</button>
+          <button class="btn btn-danger" @click="deleteProductNow" :disabled="loading">{{ $t('actions.delete') }}</button>
         </div>
       </div>
     </div>
@@ -225,6 +251,31 @@ const currentProduct = ref({
   price: 0,
   sku: "",
 });
+const errorMessage = ref("");
+const successMessage = ref("");
+
+// Delete confirmation state
+const showDeleteProductConfirm = ref(false);
+
+function confirmDeleteProduct() {
+  showDeleteProductConfirm.value = true;
+}
+
+async function deleteProductNow() {
+  if (!currentProduct.value.id) return;
+  try {
+    loading.value = true;
+    await productStore.deleteProduct(currentProduct.value.id);
+    showDeleteProductConfirm.value = false;
+    closeModal();
+    loadProducts();
+  } catch (e) {
+    console.error(e);
+    errorMessage.value = e instanceof Error ? e.message : t('products.delete_failed');
+  } finally {
+    loading.value = false;
+  }
+}
 
 // Computed
 const totalPages = computed(() => Math.ceil(totalCount.value / pageSize.value));
@@ -283,6 +334,8 @@ function editProduct(product: Product) {
 function closeModal() {
   showCreateModal.value = false;
   showEditModal.value = false;
+  errorMessage.value = "";
+  successMessage.value = "";
   currentProduct.value = {
     id: undefined,
     name: "",
@@ -295,9 +348,12 @@ function closeModal() {
 async function saveProduct() {
   try {
     loading.value = true;
+    errorMessage.value = "";
+    successMessage.value = "";
 
     if (showCreateModal.value) {
       await productStore.createProduct(currentProduct.value);
+      successMessage.value = t('messages.success.created');
     } else if (currentProduct.value.id) {
       await productStore.updateProduct({
         id: currentProduct.value.id,
@@ -306,12 +362,14 @@ async function saveProduct() {
         price: currentProduct.value.price,
         sku: currentProduct.value.sku,
       });
+      successMessage.value = t('messages.success.updated');
     }
 
     closeModal();
     loadProducts();
   } catch (error) {
     console.error("Failed to save product:", error);
+    errorMessage.value = error instanceof Error ? error.message : t('messages.error.validation_failed');
   } finally {
     loading.value = false;
   }

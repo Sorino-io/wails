@@ -134,7 +134,10 @@
     "search_placeholder": "Search by name or phone...",
     "adjust_debt": "Adjust Debt",
     "adjust_debt_hint": "Use positive amount to increase debt, negative to decrease.",
-    "confirm_adjust": "Are you sure you want to adjust this client's debt?"
+    "confirm_adjust": "Are you sure you want to adjust this client's debt?",
+    "delete_title": "Delete Client",
+    "delete_confirm": "Are you sure you want to delete this client? This cannot be undone.",
+    "delete_failed": "Failed to delete client. Make sure the client has no related records."
   },
   "products": {
     "title": "Product Management",
@@ -142,7 +145,10 @@
     "edit": "Edit Product",
     "list": "Product List",
     "search_placeholder": "Search by name or SKU...",
-    "override_price": "Override Price"
+    "override_price": "Override Price",
+    "delete_title": "Delete Product",
+    "delete_confirm": "Are you sure you want to delete this product? This cannot be undone.",
+    "delete_failed": "Failed to delete product. It may be used in orders or invoices."
   },
   "orders": {
     "title": "Order Management",
@@ -185,7 +191,9 @@
       "canceled": "Canceled"
     },
     "actions": "Actions",
-    "status": "Status"
+    "status": "Status",
+    "delete_title": "Delete Order",
+    "delete_confirm": "Are you sure you want to delete (cancel) this order?"
   },
   "invoices": {
     "title": "Invoice Management",

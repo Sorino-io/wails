@@ -6,6 +6,7 @@ import {
   GetClient,
   UpdateClient,
   AdjustClientDebt,
+  DeleteClient,
 } from "../../wailsjs/go/main/App";
 
 export interface Client {
@@ -113,6 +114,21 @@ export const useClientStore = defineStore("clients", () => {
     }
   }
 
+  async function deleteClient(id: number) {
+    loading.value = true;
+    error.value = null;
+    try {
+      await DeleteClient(id);
+      clients.value = clients.value.filter(c => c.id !== id);
+    } catch (err) {
+      console.error("Error deleting client:", err);
+      error.value = err instanceof Error ? err.message : "فشل في حذف العميل";
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   function clearError() {
     error.value = null;
   }
@@ -150,5 +166,6 @@ export const useClientStore = defineStore("clients", () => {
     getClient,
     clearError,
     adjustDebt,
+    deleteClient,
   };
 });

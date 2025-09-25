@@ -12,7 +12,11 @@ export function CreateProduct(arg1:string,arg2:string,arg3:number,arg4:string):P
 
 export function DebugSchema():Promise<Record<string, Array<string>>>;
 
+export function DeleteClient(arg1:number):Promise<void>;
+
 export function DeleteOrder(arg1:number):Promise<void>;
+
+export function DeleteProduct(arg1:number):Promise<void>;
 
 export function ExportOrderPDF(arg1:number):Promise<Array<number>>;
 

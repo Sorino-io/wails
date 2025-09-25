@@ -178,7 +178,13 @@
               ></textarea>
             </div>
 
-            <div class="flex justify-end space-x-3 space-x-reverse pt-4">
+            <div class="flex justify-between items-center pt-4">
+              <div v-if="showEditModal">
+                <button type="button" @click="confirmDeleteClient" class="btn btn-danger">
+                  {{ $t('actions.delete') }}
+                </button>
+              </div>
+              <div class="flex space-x-3 space-x-reverse">
               <button
                 type="button"
                 @click="closeModal"
@@ -189,8 +195,20 @@
               <button type="submit" :disabled="loading" class="btn btn-primary">
                 {{ loading ? $t("messages.loading") : $t("actions.save") }}
               </button>
+              </div>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+    <!-- Delete Confirm Modal -->
+    <div v-if="showDeleteClientConfirm" class="fixed inset-0 bg-gray-700 bg-opacity-60 flex items-center justify-center z-[70]">
+      <div class="bg-white rounded-md shadow p-6 w-full max-w-sm">
+        <h3 class="text-lg font-semibold mb-4">{{ $t('clients.delete_title') }}</h3>
+        <p class="text-sm text-gray-600 mb-6">{{ $t('clients.delete_confirm') }}</p>
+        <div class="flex justify-end space-x-3 space-x-reverse">
+          <button class="btn btn-secondary" @click="showDeleteClientConfirm=false">{{ $t('actions.cancel') }}</button>
+          <button class="btn btn-danger" @click="deleteClientNow" :disabled="loading">{{ $t('actions.delete') }}</button>
         </div>
       </div>
     </div>
@@ -308,6 +326,29 @@ const currentClient = ref({
   debt_cents: 0,
   address: "",
 });
+
+// Delete confirmation state
+const showDeleteClientConfirm = ref(false);
+
+function confirmDeleteClient() {
+  showDeleteClientConfirm.value = true;
+}
+
+async function deleteClientNow() {
+  if (!currentClient.value.id) return;
+  try {
+    loading.value = true;
+    await clientStore.deleteClient(currentClient.value.id);
+    showDeleteClientConfirm.value = false;
+    closeModal();
+    await loadClients();
+  } catch (e) {
+    console.error(e);
+    errorMessage.value = e instanceof Error ? e.message : t('clients.delete_failed');
+  } finally {
+    loading.value = false;
+  }
+}
 
 // Computed
 const totalPages = computed(() => Math.ceil(totalCount.value / pageSize.value));

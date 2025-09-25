@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { CreateProduct, GetProducts, UpdateProduct } from '../../wailsjs/go/main/App'
+import { CreateProduct, GetProducts, UpdateProduct, DeleteProduct } from '../../wailsjs/go/main/App'
 import { db } from '../../wailsjs/go/models'
 
 // Use the generated Product type
@@ -107,9 +107,7 @@ export const useProductStore = defineStore('products', {
       try {
         this.loading = true
         this.error = null
-        
-        // await DeleteProduct(id) // You'll need to add this method to the backend
-        
+        await DeleteProduct(id)
         this.products = this.products.filter(p => p.id !== id)
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Failed to delete product'

@@ -72,11 +72,6 @@
                 <th
                   class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  {{ $t("orders.remaining") }}
-                </th>
-                <th
-                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
                   {{ $t("orders.date") }}
                 </th>
                 <th
@@ -135,11 +130,6 @@
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
-                  <div class="text-sm text-gray-900">
-                    {{ formatPrice(order.order.remaining_cents || 0) }}
-                  </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-center">
                   <div class="text-sm text-gray-500">
                     {{ formatDate(order.order.created_at) }}
                   </div>
@@ -163,6 +153,13 @@
                       :title="$t('common.edit')"
                     >
                       <PencilIcon class="h-4 w-4" />
+                    </button>
+                    <button
+                      @click="confirmDeleteOrder(order)"
+                      class="text-red-600 hover:text-red-900 p-1 rounded transition-colors"
+                      :title="$t('actions.delete')"
+                    >
+                      <TrashIcon class="h-4 w-4" />
                     </button>
                     <button
                       @click="exportOrderPDF(order)"
@@ -568,6 +565,18 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Order Confirm -->
+    <div v-if="showDeleteOrderConfirm" class="fixed inset-0 bg-gray-700 bg-opacity-60 flex items-center justify-center z-[70]">
+      <div class="bg-white rounded-md shadow p-6 w-full max-w-sm">
+        <h3 class="text-lg font-semibold mb-4">{{ $t('orders.delete_title') }}</h3>
+        <p class="text-sm text-gray-600 mb-6">{{ $t('orders.delete_confirm') }}</p>
+        <div class="flex justify-end space-x-3 space-x-reverse">
+          <button class="btn btn-secondary" @click="showDeleteOrderConfirm=false">{{ $t('actions.cancel') }}</button>
+          <button class="btn btn-danger" @click="deleteOrderNow" :disabled="loading">{{ $t('actions.delete') }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -595,6 +604,7 @@ import {
   ExportOrderPDF,
   GetOrder,
   UpdateOrder,
+  DeleteOrder,
 } from "../../wailsjs/go/main/App";
 
 const { t } = useI18n();
@@ -640,6 +650,8 @@ const showDetailModal = ref(false);
 const detailOrder = ref<any | null>(null);
 const isEditing = ref(false);
 const editingOrderId = ref<number | null>(null);
+const showDeleteOrderConfirm = ref(false);
+const pendingDeleteOrderId = ref<number | null>(null);
 
 // Computed
 const totalPages = computed(() => Math.ceil(totalOrders.value / pageSize));
@@ -759,6 +771,26 @@ const openCreateModal = () => {
   // Initialize filtered clients
   filteredClients.value = allClients.value;
 };
+
+function confirmDeleteOrder(row: any) {
+  pendingDeleteOrderId.value = row.order.id;
+  showDeleteOrderConfirm.value = true;
+}
+
+async function deleteOrderNow() {
+  if (!pendingDeleteOrderId.value) return;
+  try {
+    loading.value = true;
+    await DeleteOrder(pendingDeleteOrderId.value);
+    showDeleteOrderConfirm.value = false;
+    pendingDeleteOrderId.value = null;
+    fetchOrders();
+  } catch (e) {
+    console.error("Failed to delete order", e);
+  } finally {
+    loading.value = false;
+  }
+}
 
 const closeCreateModal = () => {
   showCreateModal.value = false;

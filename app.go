@@ -187,6 +187,12 @@ func (a *App) AdjustClientDebt(id int, deltaCents int64) (*db.Client, error) {
 	return a.clientService.AdjustDebt(a.ctx, int64(id), deltaCents)
 }
 
+// DeleteClient deletes a client
+func (a *App) DeleteClient(id int) error {
+	if err := a.ensureReady(); err != nil { return err }
+	return a.clientService.Delete(a.ctx, int64(id))
+}
+
 // Product operations
 
 // CreateProduct creates a new product
@@ -259,6 +265,12 @@ func (a *App) UpdateProduct(id int, name, description string, price float64, sku
 		Active:         true,
 	}
 	return a.productService.Update(a.ctx, product)
+}
+
+// DeleteProduct deletes a product
+func (a *App) DeleteProduct(id int) error {
+	if err := a.ensureReady(); err != nil { return err }
+	return a.productService.Delete(a.ctx, int64(id))
 }
 
 // Dashboard operations

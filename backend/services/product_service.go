@@ -96,6 +96,24 @@ func (s *ProductService) Update(ctx context.Context, product db.Product) (*db.Pr
 	return s.repo.UpdateProduct(ctx, product)
 }
 
+// Delete removes a product
+func (s *ProductService) Delete(ctx context.Context, id int64) error {
+	if id <= 0 { return fmt.Errorf("معرف المنتج غير صحيح") }
+	if _, err := s.repo.GetProduct(ctx, id); err != nil { return fmt.Errorf("المنتج غير موجود") }
+	// Check usage
+	total, active, err := s.repo.ProductOrderUsageStats(ctx, id)
+	if err != nil { return fmt.Errorf("تعذر التحقق من استخدام المنتج: %v", err) }
+	if active > 0 {
+		return fmt.Errorf("لا يمكن حذف المنتج لوجود طلبات غير ملغاة تستخدمه")
+	}
+	// If only canceled orders reference it, we can safely delete the product without touching historical canceled rows.
+	// (Canceled orders/items will retain name/sku snapshots; product_id FK may prevent delete if still enforced.)
+	// If FK constraints block, user must purge canceled orders first; we could add automatic purge later.
+	if err := s.repo.DeleteProduct(ctx, id); err != nil { return err }
+	_ = total // (Could be logged if needed)
+	return nil
+}
+
 // ActivateProduct sets product as active
 func (s *ProductService) ActivateProduct(ctx context.Context, id int64) (*db.Product, error) {
 	product, err := s.Get(ctx, id)
