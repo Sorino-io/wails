@@ -817,6 +817,35 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 	}
 	defer tx.Rollback()
 
+	// Capture existing order state for debt diff
+	var existingStatus string
+	var clientID int64
+	if err := tx.QueryRowContext(ctx, `SELECT status, client_id FROM "order" WHERE id = ?`, update.ID).Scan(&existingStatus, &clientID); err != nil {
+		if err == sql.ErrNoRows { return nil, fmt.Errorf("order not found") }
+		return nil, fmt.Errorf("failed to load existing order: %w", err)
+	}
+
+	// Compute current total before changes (only if we might need debt adjustment)
+	var oldTotal int64
+	{
+		rows, err := tx.QueryContext(ctx, `SELECT qty, unit_price_cents, discount_percent FROM order_item WHERE order_id = ?`, update.ID)
+		if err != nil { return nil, fmt.Errorf("failed to load existing items: %w", err) }
+		for rows.Next() {
+			var qty int32; var price int64; var disc int32
+			if err := rows.Scan(&qty, &price, &disc); err != nil { rows.Close(); return nil, fmt.Errorf("scan existing item: %w", err) }
+			line := int64(qty) * price
+			line = line - (line*int64(disc))/100
+			oldTotal += line
+		}
+		rows.Close()
+		var existingOrderDiscount int64
+		if err := tx.QueryRowContext(ctx, `SELECT discount_percent FROM "order" WHERE id = ?`, update.ID).Scan(&existingOrderDiscount); err == nil {
+			if existingOrderDiscount > 0 && existingOrderDiscount <= 100 {
+				oldTotal = oldTotal - (oldTotal*existingOrderDiscount)/100
+			}
+		}
+	}
+
 	// Build UPDATE query dynamically
 	setParts := []string{}
 	args := []interface{}{}
@@ -883,12 +912,72 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 		}
 	}
 
-	// Apply order-level discount
+	// Apply order-level discount (new)
 	if update.DiscountPercent != nil {
 		if *update.DiscountPercent > 0 && *update.DiscountPercent <= 100 {
 			orderTotalCents = orderTotalCents - (orderTotalCents*int64(*update.DiscountPercent))/100
 		}
+	} else {
+		// If discount not changed, fetch existing to apply to recalculated total (when items changed)
+		if len(update.Items) > 0 {
+			var existingDiscount int64
+			if err := tx.QueryRowContext(ctx, `SELECT discount_percent FROM "order" WHERE id = ?`, update.ID).Scan(&existingDiscount); err == nil {
+				if existingDiscount > 0 && existingDiscount <= 100 {
+					orderTotalCents = orderTotalCents - (orderTotalCents*existingDiscount)/100
+				}
+			}
+		}
 	}
+
+	// Adjust client debt if order influences debt (not canceled) and no invoices/payments, and data actually changed
+	/*
+	if existingStatus != OrderStatusCanceled {
+		var invoiceCount, paymentCount int64
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM invoice WHERE order_id = ?`, update.ID).Scan(&invoiceCount); err != nil {
+			return nil, fmt.Errorf("count invoices: %w", err)
+		}
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(p.id) FROM payment p JOIN invoice i ON p.invoice_id = i.id WHERE i.order_id = ?`, update.ID).Scan(&paymentCount); err != nil {
+			return nil, fmt.Errorf("count payments: %w", err)
+		}
+		if invoiceCount == 0 && paymentCount == 0 && (len(update.Items) > 0 || update.DiscountPercent != nil) {
+			var newTotal int64 = oldTotal
+			if len(update.Items) > 0 {
+				newTotal = orderTotalCents
+			} else if update.DiscountPercent != nil {
+				var base int64
+				rows, err := tx.QueryContext(ctx, `SELECT qty, unit_price_cents, discount_percent FROM order_item WHERE order_id = ?`, update.ID)
+				if err != nil { return nil, fmt.Errorf("recalc items for discount: %w", err) }
+				for rows.Next() {
+					var qty int32; var price int64; var disc int32
+					if err := rows.Scan(&qty, &price, &disc); err != nil { rows.Close(); return nil, fmt.Errorf("scan recalc item: %w", err) }
+					line := int64(qty) * price
+					line = line - (line*int64(disc))/100
+					base += line
+				}
+				rows.Close()
+				if update.DiscountPercent != nil && *update.DiscountPercent > 0 && *update.DiscountPercent <= 100 {
+					newTotal = base - (base*int64(*update.DiscountPercent))/100
+				} else {
+					newTotal = base
+				}
+			}
+			if newTotal != oldTotal {
+				diff := newTotal - oldTotal
+				if diff != 0 {
+					if diff > 0 {
+						if _, err := tx.ExecContext(ctx, `UPDATE client SET debt_cents = COALESCE(debt_cents,0) + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, diff, clientID); err != nil {
+							return nil, fmt.Errorf("increase client debt: %w", err)
+						}
+					} else {
+						if _, err := tx.ExecContext(ctx, `UPDATE client SET debt_cents = CASE WHEN debt_cents + ? < 0 THEN 0 ELSE debt_cents + ? END, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, diff, diff, clientID); err != nil {
+							return nil, fmt.Errorf("decrease client debt: %w", err)
+						}
+					}
+				}
+			}
+		}
+	}
+	*/
 
 	// (Removed balance column) - if future outstanding tracking is needed, compute via invoices/payments
 

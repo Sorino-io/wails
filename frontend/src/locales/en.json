@@ -133,7 +133,7 @@
     "list": "Client List",
     "search_placeholder": "Search by name or phone...",
     "adjust_debt": "Adjust Debt",
-    "adjust_debt_hint": "Use positive amount to increase debt, negative to decrease.",
+    "adjust_debt_hint": "Enter an amount to decrease this client's debt (cannot increase here).",
     "confirm_adjust": "Are you sure you want to adjust this client's debt?",
     "delete_title": "Delete Client",
     "delete_confirm": "Are you sure you want to delete this client? This cannot be undone.",

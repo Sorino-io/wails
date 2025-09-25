@@ -137,12 +137,18 @@
           </h3>
 
           <!-- Error Message -->
-          <div v-if="errorMessage" class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div
+            v-if="errorMessage"
+            class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded"
+          >
             {{ errorMessage }}
           </div>
 
           <!-- Success Message -->
-          <div v-if="successMessage" class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+          <div
+            v-if="successMessage"
+            class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded"
+          >
             {{ successMessage }}
           </div>
 
@@ -189,23 +195,29 @@
 
             <div class="flex justify-between items-center pt-4">
               <div v-if="showEditModal">
-                <button type="button" @click="confirmDeleteProduct" class="btn btn-danger">{{ $t('actions.delete') }}</button>
+                <button
+                  type="button"
+                  @click="confirmDeleteProduct"
+                  class="btn btn-danger"
+                >
+                  {{ $t("actions.delete") }}
+                </button>
               </div>
               <div class="flex space-x-3 space-x-reverse">
-              <button
-                type="button"
-                @click="closeModal"
-                class="btn btn-secondary"
-              >
-                {{ $t("actions.cancel") }}
-              </button>
-              <button
-                type="submit"
-                :disabled="loading || currentProduct.price <= 0"
-                class="btn btn-primary disabled:opacity-50"
-              >
-                {{ loading ? $t("messages.loading") : $t("actions.save") }}
-              </button>
+                <button
+                  type="button"
+                  @click="closeModal"
+                  class="btn btn-secondary"
+                >
+                  {{ $t("actions.cancel") }}
+                </button>
+                <button
+                  type="submit"
+                  :disabled="loading || currentProduct.price <= 0"
+                  class="btn btn-primary disabled:opacity-50"
+                >
+                  {{ loading ? $t("messages.loading") : $t("actions.save") }}
+                </button>
               </div>
             </div>
           </form>
@@ -213,13 +225,31 @@
       </div>
     </div>
     <!-- Delete Product Confirm -->
-    <div v-if="showDeleteProductConfirm" class="fixed inset-0 bg-gray-700 bg-opacity-60 flex items-center justify-center z-[70]">
+    <div
+      v-if="showDeleteProductConfirm"
+      class="fixed inset-0 bg-gray-700 bg-opacity-60 flex items-center justify-center z-[70]"
+    >
       <div class="bg-white rounded-md shadow p-6 w-full max-w-sm">
-        <h3 class="text-lg font-semibold mb-4">{{ $t('products.delete_title') }}</h3>
-        <p class="text-sm text-gray-600 mb-6">{{ $t('products.delete_confirm') }}</p>
+        <h3 class="text-lg font-semibold mb-4">
+          {{ $t("products.delete_title") }}
+        </h3>
+        <p class="text-sm text-gray-600 mb-6">
+          {{ $t("products.delete_confirm") }}
+        </p>
         <div class="flex justify-end space-x-3 space-x-reverse">
-          <button class="btn btn-secondary" @click="showDeleteProductConfirm=false">{{ $t('actions.cancel') }}</button>
-          <button class="btn btn-danger" @click="deleteProductNow" :disabled="loading">{{ $t('actions.delete') }}</button>
+          <button
+            class="btn btn-secondary"
+            @click="showDeleteProductConfirm = false"
+          >
+            {{ $t("actions.cancel") }}
+          </button>
+          <button
+            class="btn btn-danger"
+            @click="deleteProductNow"
+            :disabled="loading"
+          >
+            {{ $t("actions.delete") }}
+          </button>
         </div>
       </div>
     </div>
@@ -271,7 +301,8 @@ async function deleteProductNow() {
     loadProducts();
   } catch (e) {
     console.error(e);
-    errorMessage.value = e instanceof Error ? e.message : t('products.delete_failed');
+    errorMessage.value =
+      e instanceof Error ? e.message : t("products.delete_failed");
   } finally {
     loading.value = false;
   }
@@ -353,7 +384,7 @@ async function saveProduct() {
 
     if (showCreateModal.value) {
       await productStore.createProduct(currentProduct.value);
-      successMessage.value = t('messages.success.created');
+      successMessage.value = t("messages.success.created");
     } else if (currentProduct.value.id) {
       await productStore.updateProduct({
         id: currentProduct.value.id,
@@ -362,14 +393,17 @@ async function saveProduct() {
         price: currentProduct.value.price,
         sku: currentProduct.value.sku,
       });
-      successMessage.value = t('messages.success.updated');
+      successMessage.value = t("messages.success.updated");
     }
 
     closeModal();
     loadProducts();
   } catch (error) {
     console.error("Failed to save product:", error);
-    errorMessage.value = error instanceof Error ? error.message : t('messages.error.validation_failed');
+    errorMessage.value =
+      error instanceof Error
+        ? error.message
+        : t("messages.error.validation_failed");
   } finally {
     loading.value = false;
   }
