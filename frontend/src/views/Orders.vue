@@ -72,6 +72,11 @@
                 <th
                   class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
+                  {{ $t("orders.remaining") }}
+                </th>
+                <th
+                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   {{ $t("orders.date") }}
                 </th>
                 <th
@@ -127,6 +132,11 @@
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                   <div class="text-sm text-gray-900">
                     {{ formatPrice(order.total_cents || 0) }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                  <div class="text-sm text-gray-900">
+                    {{ formatPrice(order.order.remaining_cents || 0) }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
