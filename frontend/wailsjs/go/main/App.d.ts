@@ -10,6 +10,8 @@ export function CreateOrder(arg1:number,arg2:string,arg3:number,arg4:Array<Recor
 
 export function CreateProduct(arg1:string,arg2:string,arg3:number,arg4:string):Promise<db.Product>;
 
+export function DebugSchema():Promise<Record<string, Array<string>>>;
+
 export function DeleteOrder(arg1:number):Promise<void>;
 
 export function ExportOrderPDF(arg1:number):Promise<Array<number>>;

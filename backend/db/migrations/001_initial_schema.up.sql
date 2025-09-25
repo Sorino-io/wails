@@ -1,10 +1,11 @@
--- Create client table
+-- Global consolidated schema (reset)
+-- Client table (email removed, debt_cents added)
 CREATE TABLE client (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     phone TEXT,
-    email TEXT,
     address TEXT,
+    debt_cents INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME
 );
@@ -22,7 +23,6 @@ CREATE TABLE product (
     updated_at DATETIME
 );
 
--- Create order table
 CREATE TABLE "order" (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_number TEXT UNIQUE NOT NULL,
@@ -30,14 +30,12 @@ CREATE TABLE "order" (
     status TEXT NOT NULL DEFAULT 'PENDING',
     notes TEXT,
     discount_percent INTEGER DEFAULT 0 CHECK(discount_percent >= 0 AND discount_percent <= 100),
-    tax_percent INTEGER DEFAULT 0 CHECK(tax_percent >= 0 AND tax_percent <= 100),
     issue_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     due_date DATETIME,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME
 );
 
--- Create order_item table
 CREATE TABLE order_item (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id INTEGER NOT NULL REFERENCES "order"(id) ON DELETE CASCADE,
@@ -46,6 +44,7 @@ CREATE TABLE order_item (
     sku_snapshot TEXT,
     qty INTEGER NOT NULL CHECK(qty > 0),
     unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),
+    discount_percent INTEGER NOT NULL DEFAULT 0 CHECK(discount_percent >= 0 AND discount_percent <= 100),
     currency TEXT NOT NULL DEFAULT 'DZD',
     total_cents INTEGER NOT NULL CHECK(total_cents >= 0)
 );

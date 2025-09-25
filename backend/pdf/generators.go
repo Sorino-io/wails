@@ -218,9 +218,9 @@ func (g *OrderPDFGenerator) GenerateOrderPDF(orderDetail db.OrderDetail) ([]byte
 	ltrCell(35, 8, db.FormatCurrency(total, "USD"), "1", 0, false, 0)
 	arabicCell(135, 8, "الإجمالي:", "", 1, false, 0)
 
-	remaining := orderDetail.Order.RemainingCents + total
-	ltrCell(35, 8, db.FormatCurrency(remaining, "USD"), "1", 0, false, 0)
-	arabicCell(135, 8, "الدين :", "", 1, false, 0)
+	// Show client total debt (after including this order if logic elsewhere updated debt_cents)
+	ltrCell(35, 8, db.FormatCurrency(orderDetail.Client.DebtCents, "USD"), "1", 0, false, 0)
+	arabicCell(135, 8, "ديون العميل:", "", 1, false, 0)
 
 	// Notes (RTL)
 	if orderDetail.Order.Notes != nil && *orderDetail.Order.Notes != "" {

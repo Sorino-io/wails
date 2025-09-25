@@ -1,16 +1,19 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"path"
 	"sort"
 	"strings"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -51,18 +54,27 @@ func Connect(dataSourceName string) (*DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	// Basic sanity ping early (with timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("database ping failed: %w (dsn=%s)", err, dsn)
+	}
+
 	// Enable foreign keys
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
 	// Improve concurrency and reduce locking issues
 	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
 		// Non-fatal: log via fmt, but continue
-		fmt.Printf("warning: failed to set journal_mode=WAL: %v\n", err)
+		log.Printf("[db] warning: failed to set journal_mode=WAL: %v", err)
 	}
 	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
-		fmt.Printf("warning: failed to set busy_timeout: %v\n", err)
+		log.Printf("[db] warning: failed to set busy_timeout: %v", err)
 	}
 
 	// Set connection pool settings
@@ -70,7 +82,48 @@ func Connect(dataSourceName string) (*DB, error) {
 	db.SetMaxIdleConns(5)    // Keep some idle connections
 	db.SetConnMaxLifetime(0) // No connection lifetime limit
 
-	return &DB{DB: db}, nil
+	wrapped := &DB{DB: db}
+
+	// Optional deep diagnostics when DEBUG_DB=1
+	if v, ok := os.LookupEnv("DEBUG_DB"); ok && v != "" && v != "0" && strings.ToLower(v) != "false" {
+		log.Printf("[db] DEBUG_DB enabled. dsn=%s", dsn)
+		// SQLite version
+		var sqliteVersion string
+		if err := wrapped.QueryRow("select sqlite_version()").Scan(&sqliteVersion); err == nil {
+			log.Printf("[db] sqlite_version=%s", sqliteVersion)
+		}
+		// List attached databases
+		rows, err := wrapped.Query("PRAGMA database_list")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var seq int
+				var name, file string
+				if scanErr := rows.Scan(&seq, &name, &file); scanErr == nil {
+					log.Printf("[db] database_list seq=%d name=%s file=%s", seq, name, file)
+				}
+			}
+		}
+		// List tables
+		tableRows, err := wrapped.Query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+		if err == nil {
+			defer tableRows.Close()
+			var tables []string
+			for tableRows.Next() {
+				var t string
+				if scanErr := tableRows.Scan(&t); scanErr == nil {
+					tables = append(tables, t)
+				}
+			}
+			if len(tables) > 0 {
+				log.Printf("[db] existing tables: %s", strings.Join(tables, ", "))
+			} else {
+				log.Printf("[db] no tables present yet (migrations pending)")
+			}
+		}
+	}
+
+	return wrapped, nil
 }
 
 // RunMigrations executes all migration files in the migrations directory

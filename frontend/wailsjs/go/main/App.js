@@ -18,6 +18,10 @@ export function CreateProduct(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateProduct'](arg1, arg2, arg3, arg4);
 }
 
+export function DebugSchema() {
+  return window['go']['main']['App']['DebugSchema']();
+}
+
 export function DeleteOrder(arg1) {
   return window['go']['main']['App']['DeleteOrder'](arg1);
 }

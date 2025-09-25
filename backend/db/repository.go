@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"os"
 	"time"
 )
 
@@ -13,19 +15,25 @@ type Repository struct {
 }
 
 // NewRepository creates a new repository instance
-func NewRepository(db *DB) *Repository {
-	return &Repository{db: db}
-}
+func NewRepository(db *DB) *Repository { return &Repository{db: db} }
 
 // Client operations
 
 func (r *Repository) CreateClient(ctx context.Context, client Client) (*Client, error) {
+	debug := false
+	if v, ok := os.LookupEnv("DEBUG_CLIENTS"); ok && v != "" && v != "0" {
+		debug = true
+	}
+	if debug {
+		log.Printf("[clients] repo CreateClient inserting name=%q phone=%v address=%v debt=%d", client.Name, client.Phone, client.Address, client.DebtCents)
+	}
 	query := `
 		INSERT INTO client (name, phone, address, debt_cents, created_at, updated_at)
 		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`
 	result, err := r.db.ExecContext(ctx, query, client.Name, client.Phone, client.Address, client.DebtCents)
 	if err != nil {
+		if debug { log.Printf("[clients] repo CreateClient SQL error: %v", err) }
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
@@ -36,6 +44,9 @@ func (r *Repository) CreateClient(ctx context.Context, client Client) (*Client, 
 
 	client.ID = id
 	client.CreatedAt = time.Now()
+	if debug {
+		log.Printf("[clients] repo CreateClient success id=%d", client.ID)
+	}
 	return &client, nil
 }
 
@@ -214,9 +225,12 @@ func (r *Repository) UpdateProduct(ctx context.Context, product Product) (*Produ
 // Order operations (simplified - full implementation would include items handling)
 
 func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order, error) {
+	// TEMP DIAGNOSTIC LOGGING
+	fmt.Printf("[CreateOrder] START client_id=%d items=%d discount=%d\n", draft.ClientID, len(draft.Items), draft.DiscountPercent)
 	// Start transaction
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
+		fmt.Printf("[CreateOrder] begin tx error: %v\n", err)
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
@@ -237,6 +251,7 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 	var clientDebtCents int64
 	err = tx.QueryRowContext(ctx, `SELECT debt_cents FROM client WHERE id = ?`, draft.ClientID).Scan(&clientDebtCents)
 	if err != nil {
+		fmt.Printf("[CreateOrder] select client debt error: %v\n", err)
 		return nil, fmt.Errorf("failed to get client debt: %w", err)
 	}
 
@@ -248,6 +263,7 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 	result, err := tx.ExecContext(ctx, orderQuery, orderNumber, draft.ClientID, OrderStatusPending,
 		draft.Notes, draft.DiscountPercent, issueDate, draft.DueDate)
 	if err != nil {
+		fmt.Printf("[CreateOrder] insert order error: %v\n", err)
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
 
@@ -258,7 +274,7 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 
 	var orderTotalCents int64
 	// Create order items
-	for _, item := range draft.Items {
+	for idx, item := range draft.Items {
 		totalCents := int64(item.Qty) * item.UnitPriceCents
 		orderTotalCents += totalCents - (totalCents*int64(item.DiscountPercent))/100
 		itemQuery := `
@@ -268,6 +284,7 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		_, err := tx.ExecContext(ctx, itemQuery, orderID, item.ProductID, item.NameSnapshot,
 			item.SKUSnapshot, item.Qty, item.UnitPriceCents, item.DiscountPercent, item.Currency, totalCents)
 		if err != nil {
+			fmt.Printf("[CreateOrder] insert order item error: %v (idx=%d)\n", err, idx)
 			return nil, fmt.Errorf("failed to create order item: %w", err)
 		}
 	}
@@ -277,20 +294,17 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		orderTotalCents = orderTotalCents - (orderTotalCents*int64(draft.DiscountPercent))/100
 	}
 
-	// Increment client's debt by order total
+	// Increment client's debt by order total (business rule retained)
 	if orderTotalCents > 0 {
 		if _, err := tx.ExecContext(ctx, `UPDATE client SET debt_cents = COALESCE(debt_cents,0) + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, orderTotalCents, draft.ClientID); err != nil {
+			fmt.Printf("[CreateOrder] update client debt error: %v\n", err)
 			return nil, fmt.Errorf("failed to update client debt: %w", err)
 		}
 	}
 
-	// Set remaining cents on order
-	if _, err := tx.ExecContext(ctx, `UPDATE "order" SET remaining_cents = ? WHERE id = ?`, orderTotalCents, orderID); err != nil {
-		return nil, fmt.Errorf("failed to update order remaining_cents: %w", err)
-	}
-
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
+			fmt.Printf("[CreateOrder] commit error: %v\n", err)
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
@@ -305,10 +319,29 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		IssueDate:       issueDate,
 		DueDate:         draft.DueDate,
 		CreatedAt:       time.Now(),
-		RemainingCents:  orderTotalCents,
 	}
 
+	fmt.Printf("[CreateOrder] SUCCESS order_id=%d total=%d items=%d\n", order.ID, orderTotalCents, len(draft.Items))
 	return order, nil
+}
+
+// DebugSchema returns a map of table -> columns for diagnostics
+func (r *Repository) DebugSchema(ctx context.Context) (map[string][]string, error) {
+	result := make(map[string][]string)
+	rows, err := r.db.QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`)
+	if err != nil { return nil, err }
+	defer rows.Close()
+	var tables []string
+	for rows.Next() { var name string; if err := rows.Scan(&name); err != nil { return nil, err }; tables = append(tables, name) }
+	for _, t := range tables {
+		crow, err := r.db.QueryContext(ctx, fmt.Sprintf(`PRAGMA table_info(%s)`, t))
+		if err != nil { continue }
+		defer crow.Close()
+		cols := []string{}
+		for crow.Next() { var cid int; var name, ctype string; var notnull, pk int; var dflt interface{}; if err := crow.Scan(&cid,&name,&ctype,&notnull,&dflt,&pk); err==nil { cols = append(cols, name) } }
+		result[t] = cols
+	}
+	return result, nil
 }
 
 // ListOrders retrieves orders with pagination and filters
@@ -358,7 +391,7 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 			SELECT 
 				o.id, o.order_number, o.client_id, o.status, o.notes, 
 				o.discount_percent, o.issue_date, o.due_date,
-				o.created_at, o.updated_at, o.remaining_cents,
+				o.created_at, o.updated_at,
 				c.id, c.name, c.phone, c.address, c.debt_cents, c.created_at, c.updated_at
 			FROM "order" o
 			JOIN client c ON o.client_id = c.id
@@ -382,7 +415,7 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 		err := rows.Scan(
 			&order.Order.ID, &order.Order.OrderNumber, &order.Order.ClientID, &order.Order.Status,
 			&order.Order.Notes, &order.Order.DiscountPercent,
-			&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt, &order.Order.RemainingCents,
+			&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt,
 			&order.Client.ID, &order.Client.Name, &order.Client.Phone,
 			&order.Client.Address, &order.Client.DebtCents, &order.Client.CreatedAt, &order.Client.UpdatedAt,
 		)
@@ -412,22 +445,22 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 
 // GetOrderDetail retrieves a single order with full details
 func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT 
 			o.id, o.order_number, o.client_id, o.status, o.notes, 
 			o.discount_percent, o.issue_date, o.due_date,
-			o.created_at, o.updated_at, o.remaining_cents,
+			o.created_at, o.updated_at,
 			c.id, c.name, c.phone, c.address, c.debt_cents, c.created_at, c.updated_at
 		FROM "order" o
 		JOIN client c ON o.client_id = c.id
 		WHERE o.id = ?
-	`
+	`)
 
 	var order OrderDetail
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&order.Order.ID, &order.Order.OrderNumber, &order.Order.ClientID, &order.Order.Status,
 		&order.Order.Notes, &order.Order.DiscountPercent,
-		&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt, &order.Order.RemainingCents,
+		&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt,
 		&order.Client.ID, &order.Client.Name, &order.Client.Phone,
 		&order.Client.Address, &order.Client.DebtCents, &order.Client.CreatedAt, &order.Client.UpdatedAt,
 	)
@@ -720,10 +753,7 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 		}
 	}
 
-	// Set remaining cents on order
-	if _, err := tx.ExecContext(ctx, `UPDATE "order" SET remaining_cents = ? WHERE id = ?`, orderTotalCents, update.ID); err != nil {
-		return nil, fmt.Errorf("failed to update order remaining_cents: %w", err)
-	}
+	// (Removed balance column) - if future outstanding tracking is needed, compute via invoices/payments
 
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
@@ -732,11 +762,11 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 
 	// Get updated order
 	var order Order
-	query := `SELECT id, order_number, client_id, status, notes, discount_percent, issue_date, due_date, created_at, updated_at, remaining_cents FROM "order" WHERE id = ?`
+	query := `SELECT id, order_number, client_id, status, notes, discount_percent, issue_date, due_date, created_at, updated_at FROM "order" WHERE id = ?`
 	err = r.db.QueryRowContext(ctx, query, update.ID).Scan(
 		&order.ID, &order.OrderNumber, &order.ClientID, &order.Status, &order.Notes,
 		&order.DiscountPercent, &order.IssueDate, &order.DueDate,
-		&order.CreatedAt, &order.UpdatedAt, &order.RemainingCents,
+		&order.CreatedAt, &order.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get updated order: %w", err)

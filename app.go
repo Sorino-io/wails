@@ -111,14 +111,26 @@ func (a *App) CreateClient(name, phone, address string) (*db.Client, error) {
 	if address != "" {
 		addressPtr = &address
 	}
-
+	if v, ok := os.LookupEnv("DEBUG_CLIENTS"); ok && v != "" && v != "0" {
+		log.Printf("[clients] CreateClient req name=%q phone=%q address=%q", name, phone, address)
+	}
 	client := db.Client{
 		Name:      name,
 		Phone:     phonePtr,
 		Address:   addressPtr,
 		DebtCents: 0,
 	}
-	return a.clientService.Create(a.ctx, client)
+	res, err := a.clientService.Create(a.ctx, client)
+	if err != nil {
+		if v, ok := os.LookupEnv("DEBUG_CLIENTS"); ok && v != "" && v != "0" {
+			log.Printf("[clients] CreateClient error: %v", err)
+		}
+		return nil, err
+	}
+	if v, ok := os.LookupEnv("DEBUG_CLIENTS"); ok && v != "" && v != "0" {
+		log.Printf("[clients] CreateClient success id=%d", res.ID)
+	}
+	return res, nil
 }
 
 // GetClients retrieves clients with pagination and search
@@ -426,6 +438,12 @@ func (a *App) GetOrderStatuses() []string {
 		return []string{}
 	}
 	return a.orderService.GetOrderStatuses()
+}
+
+// DebugSchema dumps current DB schema (tables -> columns) for diagnostics
+func (a *App) DebugSchema() (map[string][]string, error) {
+	if err := a.ensureReady(); err != nil { return nil, err }
+	return a.repo.DebugSchema(a.ctx)
 }
 
 // ExportOrderPDF generates and exports an order as PDF

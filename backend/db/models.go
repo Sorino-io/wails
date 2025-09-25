@@ -46,7 +46,6 @@ type Order struct {
 	DueDate         *time.Time `json:"due_date" db:"due_date"`
 	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt       *time.Time `json:"updated_at" db:"updated_at"`
-	RemainingCents  int64      `json:"remaining_cents" db:"remaining_cents"`
 }
 
 // OrderItem represents a line item in an order
