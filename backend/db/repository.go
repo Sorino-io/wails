@@ -114,7 +114,6 @@ func (r *Repository) UpdateClient(ctx context.Context, client Client) (*Client, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to update client: %w", err)
 	}
-
 	return r.GetClient(ctx, client.ID)
 }
 
@@ -225,11 +224,8 @@ func (r *Repository) UpdateProduct(ctx context.Context, product Product) (*Produ
 		SET sku = ?, name = ?, description = ?, unit_price_cents = ?, currency = ?, active = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`
-	_, err := r.db.ExecContext(ctx, query, product.SKU, product.Name, product.Description,
-		product.UnitPriceCents, product.Currency, product.Active, product.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update product: %w", err)
-	}
+	_, err := r.db.ExecContext(ctx, query, product.SKU, product.Name, product.Description, product.UnitPriceCents, product.Currency, product.Active, product.ID)
+	if err != nil { return nil, fmt.Errorf("failed to update product: %w", err) }
 
 	return r.GetProduct(ctx, product.ID)
 }
@@ -277,10 +273,10 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		return nil, fmt.Errorf("failed to get client debt: %w", err)
 	}
 
-	// Create order
+	// Create order (snapshot column initially NULL, will fill after possible debt update)
 	orderQuery := `
-		INSERT INTO "order" (order_number, client_id, status, notes, discount_percent, issue_date, due_date, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		INSERT INTO "order" (order_number, client_id, status, notes, discount_percent, issue_date, due_date, client_debt_snapshot_cents, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`
 	result, err := tx.ExecContext(ctx, orderQuery, orderNumber, draft.ClientID, OrderStatusPending,
 		draft.Notes, draft.DiscountPercent, issueDate, draft.DueDate)
@@ -324,6 +320,11 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		}
 	}
 
+	// Store snapshot after increment (or unchanged if zero total) so PDF has consistent historical value
+	if _, err := tx.ExecContext(ctx, `UPDATE "order" SET client_debt_snapshot_cents = (SELECT debt_cents FROM client WHERE id = ?) WHERE id = ?`, draft.ClientID, orderID); err != nil {
+		return nil, fmt.Errorf("failed to set debt snapshot: %w", err)
+	}
+
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
 			fmt.Printf("[CreateOrder] commit error: %v\n", err)
@@ -331,16 +332,20 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 	}
 
 	// Return created order
+	// Load snapshot for return
+	var snapshot *int64
+	_ = r.db.QueryRowContext(ctx, `SELECT client_debt_snapshot_cents FROM "order" WHERE id = ?`, orderID).Scan(&snapshot)
 	order := &Order{
-		ID:              orderID,
-		OrderNumber:     orderNumber,
-		ClientID:        draft.ClientID,
-		Status:          OrderStatusPending,
-		Notes:           draft.Notes,
-		DiscountPercent: draft.DiscountPercent,
-		IssueDate:       issueDate,
-		DueDate:         draft.DueDate,
-		CreatedAt:       time.Now(),
+		ID:                       orderID,
+		OrderNumber:              orderNumber,
+		ClientID:                 draft.ClientID,
+		Status:                   OrderStatusPending,
+		Notes:                    draft.Notes,
+		DiscountPercent:          draft.DiscountPercent,
+		IssueDate:                issueDate,
+		DueDate:                  draft.DueDate,
+		CreatedAt:                time.Now(),
+		ClientDebtSnapshotCents:  snapshot,
 	}
 
 	fmt.Printf("[CreateOrder] SUCCESS order_id=%d total=%d items=%d\n", order.ID, orderTotalCents, len(draft.Items))
@@ -527,7 +532,7 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 	query := fmt.Sprintf(`
 			SELECT 
 				o.id, o.order_number, o.client_id, o.status, o.notes, 
-				o.discount_percent, o.issue_date, o.due_date,
+				o.discount_percent, o.issue_date, o.due_date, o.client_debt_snapshot_cents,
 				o.created_at, o.updated_at,
 				c.id, c.name, c.phone, c.address, c.debt_cents, c.created_at, c.updated_at
 			FROM "order" o
@@ -552,7 +557,7 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 		err := rows.Scan(
 			&order.Order.ID, &order.Order.OrderNumber, &order.Order.ClientID, &order.Order.Status,
 			&order.Order.Notes, &order.Order.DiscountPercent,
-			&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt,
+			&order.Order.IssueDate, &order.Order.DueDate, &order.Order.ClientDebtSnapshotCents, &order.Order.CreatedAt, &order.Order.UpdatedAt,
 			&order.Client.ID, &order.Client.Name, &order.Client.Phone,
 			&order.Client.Address, &order.Client.DebtCents, &order.Client.CreatedAt, &order.Client.UpdatedAt,
 		)
@@ -585,7 +590,7 @@ func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail
 	query := fmt.Sprintf(`
 		SELECT 
 			o.id, o.order_number, o.client_id, o.status, o.notes, 
-			o.discount_percent, o.issue_date, o.due_date,
+			o.discount_percent, o.issue_date, o.due_date, o.client_debt_snapshot_cents,
 			o.created_at, o.updated_at,
 			c.id, c.name, c.phone, c.address, c.debt_cents, c.created_at, c.updated_at
 		FROM "order" o
@@ -597,7 +602,7 @@ func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&order.Order.ID, &order.Order.OrderNumber, &order.Order.ClientID, &order.Order.Status,
 		&order.Order.Notes, &order.Order.DiscountPercent,
-		&order.Order.IssueDate, &order.Order.DueDate, &order.Order.CreatedAt, &order.Order.UpdatedAt,
+		&order.Order.IssueDate, &order.Order.DueDate, &order.Order.ClientDebtSnapshotCents, &order.Order.CreatedAt, &order.Order.UpdatedAt,
 		&order.Client.ID, &order.Client.Name, &order.Client.Phone,
 		&order.Client.Address, &order.Client.DebtCents, &order.Client.CreatedAt, &order.Client.UpdatedAt,
 	)
@@ -979,6 +984,11 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 	}
 	*/
 
+	// After any potential debt adjustments (logic currently commented), always refresh snapshot so PDFs are consistent
+	if _, err := tx.ExecContext(ctx, `UPDATE "order" SET client_debt_snapshot_cents = (SELECT debt_cents FROM client WHERE id = ?) WHERE id = ?`, clientID, update.ID); err != nil {
+		return nil, fmt.Errorf("failed to update debt snapshot: %w", err)
+	}
+
 	// (Removed balance column) - if future outstanding tracking is needed, compute via invoices/payments
 
 	// Commit transaction
@@ -988,10 +998,10 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 
 	// Get updated order
 	var order Order
-	query := `SELECT id, order_number, client_id, status, notes, discount_percent, issue_date, due_date, created_at, updated_at FROM "order" WHERE id = ?`
+	query := `SELECT id, order_number, client_id, status, notes, discount_percent, issue_date, due_date, client_debt_snapshot_cents, created_at, updated_at FROM "order" WHERE id = ?`
 	err = r.db.QueryRowContext(ctx, query, update.ID).Scan(
 		&order.ID, &order.OrderNumber, &order.ClientID, &order.Status, &order.Notes,
-		&order.DiscountPercent, &order.IssueDate, &order.DueDate,
+		&order.DiscountPercent, &order.IssueDate, &order.DueDate, &order.ClientDebtSnapshotCents,
 		&order.CreatedAt, &order.UpdatedAt,
 	)
 	if err != nil {

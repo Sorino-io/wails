@@ -131,6 +131,7 @@ export namespace db {
 	    created_at: any;
 	    // Go type: time
 	    updated_at?: any;
+	    client_debt_snapshot_cents?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Order(source);
@@ -148,6 +149,7 @@ export namespace db {
 	        this.due_date = this.convertValues(source["due_date"], null);
 	        this.created_at = this.convertValues(source["created_at"], null);
 	        this.updated_at = this.convertValues(source["updated_at"], null);
+	        this.client_debt_snapshot_cents = source["client_debt_snapshot_cents"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -46,6 +46,11 @@ type Order struct {
 	DueDate         *time.Time `json:"due_date" db:"due_date"`
 	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt       *time.Time `json:"updated_at" db:"updated_at"`
+	// Snapshot of the client's total debt (debt_cents) immediately AFTER this order
+	// was created or last edited (including any debt adjustments done by edits).
+	// This allows PDFs to show a historical consistent debt rather than the
+	// current (possibly changed) client debt.
+	ClientDebtSnapshotCents *int64 `json:"client_debt_snapshot_cents" db:"client_debt_snapshot_cents"`
 }
 
 // OrderItem represents a line item in an order
