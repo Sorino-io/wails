@@ -266,7 +266,7 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		issueDate = *draft.IssueDate
 	}
 
-	// Get client's current debt
+	// Get client's current debt BEFORE adding this order (for PDF snapshot)
 	var clientDebtCents int64
 	err = tx.QueryRowContext(ctx, `SELECT debt_cents FROM client WHERE id = ?`, draft.ClientID).Scan(&clientDebtCents)
 	if err != nil {
@@ -274,13 +274,13 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		return nil, fmt.Errorf("failed to get client debt: %w", err)
 	}
 
-	// Create order (snapshot column initially NULL, will fill after possible debt update)
+	// Create order with snapshot of debt BEFORE this order is added
 	orderQuery := `
 		INSERT INTO "order" (order_number, client_id, status, notes, discount_percent, issue_date, due_date, client_debt_snapshot_cents, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`
 	result, err := tx.ExecContext(ctx, orderQuery, orderNumber, draft.ClientID, OrderStatusPending,
-		draft.Notes, draft.DiscountPercent, issueDate, draft.DueDate)
+		draft.Notes, draft.DiscountPercent, issueDate, draft.DueDate, clientDebtCents)
 	if err != nil {
 		fmt.Printf("[CreateOrder] insert order error: %v\n", err)
 		return nil, fmt.Errorf("failed to create order: %w", err)
@@ -319,10 +319,7 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		}
 	}
 
-	// Store snapshot after increment (or unchanged if zero total) so PDF has consistent historical value
-	if _, err := tx.ExecContext(ctx, `UPDATE "order" SET client_debt_snapshot_cents = (SELECT debt_cents FROM client WHERE id = ?) WHERE id = ?`, draft.ClientID, orderID); err != nil {
-		return nil, fmt.Errorf("failed to set debt snapshot: %w", err)
-	}
+	// Note: client_debt_snapshot_cents was already set during order insertion to the PREVIOUS debt amount
 
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
@@ -331,7 +328,7 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 	}
 
 	// Return created order
-	// Load snapshot for return
+	// Load snapshot for return (should be the previous debt amount)
 	var snapshot *int64
 	_ = r.db.QueryRowContext(ctx, `SELECT client_debt_snapshot_cents FROM "order" WHERE id = ?`, orderID).Scan(&snapshot)
 	order := &Order{
