@@ -308,10 +308,8 @@ func (r *Repository) CreateOrder(ctx context.Context, draft OrderDraft) (*Order,
 		}
 	}
 
-	// Apply order-level discount
-	if draft.DiscountPercent > 0 && draft.DiscountPercent <= 100 {
-		orderTotalCents = orderTotalCents - (orderTotalCents*int64(draft.DiscountPercent))/100
-	}
+	// Global discount is NOT applied to orderTotalCents - it's just a UI helper for setting item discounts
+	// The orderTotalCents already includes item-level discounts applied above
 
 	// Increment client's debt by order total (business rule retained)
 	if orderTotalCents > 0 {
@@ -385,14 +383,8 @@ func (r *Repository) CancelOrderAndAdjustDebt(ctx context.Context, orderID int64
 		total += line
 	}
 
-	// Apply order-level discount
-	var orderDiscount int64
-	if err := tx.QueryRowContext(ctx, `SELECT discount_percent FROM "order" WHERE id = ?`, orderID).Scan(&orderDiscount); err != nil {
-		return 0, fmt.Errorf("load order discount: %w", err)
-	}
-	if orderDiscount > 0 && orderDiscount <= 100 {
-		total = total - (total*orderDiscount)/100
-	}
+	// Order-level discount is NOT applied - it's just a UI helper for setting item discounts
+	// Total already includes item-level discounts from the loop above
 
 	// Check for invoices/payments referencing this order
 	var invoiceCount int
@@ -573,8 +565,8 @@ func (r *Repository) ListOrders(ctx context.Context, filters OrderFilters, limit
 		}
 		order.Items = items
 
-		// Calculate totals
-		subtotal, discount, _, total := CalcOrderTotals(items, order.Order.DiscountPercent, 0)
+		// Calculate totals - pass 0 for discount since global discount is just UI helper
+		subtotal, discount, _, total := CalcOrderTotals(items, 0, 0)
 		order.SubtotalCents = subtotal
 		order.DiscountCents = discount
 		order.TaxCents = 0
@@ -621,8 +613,8 @@ func (r *Repository) GetOrderDetail(ctx context.Context, id int64) (*OrderDetail
 	}
 	order.Items = items
 
-	// Calculate totals
-	subtotal, discount, _, total := CalcOrderTotals(items, order.Order.DiscountPercent, 0)
+	// Calculate totals - pass 0 for discount since global discount is just UI helper
+	subtotal, discount, _, total := CalcOrderTotals(items, 0, 0)
 	order.SubtotalCents = subtotal
 	order.DiscountCents = discount
 	order.TaxCents = 0
@@ -844,12 +836,8 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 			oldTotal += line
 		}
 		rows.Close()
-		var existingOrderDiscount int64
-		if err := tx.QueryRowContext(ctx, `SELECT discount_percent FROM "order" WHERE id = ?`, update.ID).Scan(&existingOrderDiscount); err == nil {
-			if existingOrderDiscount > 0 && existingOrderDiscount <= 100 {
-				oldTotal = oldTotal - (oldTotal*existingOrderDiscount)/100
-			}
-		}
+		// Order-level discount is NOT applied - it's just a UI helper for setting item discounts
+		// oldTotal already includes item-level discounts from the loop above
 	}
 
 	// Build UPDATE query dynamically
@@ -918,22 +906,8 @@ func (r *Repository) UpdateOrder(ctx context.Context, update OrderUpdate) (*Orde
 		}
 	}
 
-	// Apply order-level discount (new)
-	if update.DiscountPercent != nil {
-		if *update.DiscountPercent > 0 && *update.DiscountPercent <= 100 {
-			orderTotalCents = orderTotalCents - (orderTotalCents*int64(*update.DiscountPercent))/100
-		}
-	} else {
-		// If discount not changed, fetch existing to apply to recalculated total (when items changed)
-		if len(update.Items) > 0 {
-			var existingDiscount int64
-			if err := tx.QueryRowContext(ctx, `SELECT discount_percent FROM "order" WHERE id = ?`, update.ID).Scan(&existingDiscount); err == nil {
-				if existingDiscount > 0 && existingDiscount <= 100 {
-					orderTotalCents = orderTotalCents - (orderTotalCents*existingDiscount)/100
-				}
-			}
-		}
-	}
+	// Order-level discount is NOT applied to orderTotalCents - it's just a UI helper
+	// The orderTotalCents already includes item-level discounts applied above
 
 	// Adjust client debt if order influences debt (not canceled) and no invoices/payments, and data actually changed
 	/*

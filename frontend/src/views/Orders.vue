@@ -933,12 +933,10 @@ const calculateOrderTotal = () => {
     const itemTotal = item.qty * item.unit_price * 100;
     return sum + itemTotal * (item.discount_percent / 100);
   }, 0);
+
+  // Only use item discounts - global discount is just UI convenience for setting item discounts
   const afterItemDiscounts = subtotal - itemDiscounts;
-  const orderLevelDiscount =
-    newOrder.value.discount_percent > 0
-      ? (afterItemDiscounts * newOrder.value.discount_percent) / 100
-      : 0;
-  return afterItemDiscounts - orderLevelDiscount;
+  return afterItemDiscounts;
 };
 
 // Propagate order-level discount changes to items that weren't manually adjusted

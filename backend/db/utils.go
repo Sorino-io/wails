@@ -6,8 +6,9 @@ import (
 )
 
 // CalcOrderTotals calculates order totals based on items, discount and tax percentages
+// Note: discountPct is ignored - global discount is just UI convenience for setting item discounts
 func CalcOrderTotals(items []OrderItem, discountPct, taxPct int) (subtotal, discount, tax, total int64) {
-	// Calculate subtotal and discount from items
+	// Calculate subtotal and discount from items only
 	for _, item := range items {
 		itemSubtotal := item.TotalCents
 		itemDiscount := (itemSubtotal * int64(item.DiscountPercent)) / 100
@@ -15,9 +16,8 @@ func CalcOrderTotals(items []OrderItem, discountPct, taxPct int) (subtotal, disc
 		discount += itemDiscount
 	}
 
-	// Apply order-level discount
-	orderDiscount := (subtotal * int64(discountPct)) / 100
-	discount += orderDiscount
+	// Global discount is NOT applied - it's just a UI helper for setting item discounts
+	// Order-level discount is ignored in calculations
 
 	// Calculate total
 	total = subtotal - discount

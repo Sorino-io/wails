@@ -348,7 +348,7 @@ func (a *App) CreateOrder(clientID int, notes string, discountPercent int, items
 	draft := db.OrderDraft{
 		ClientID:        int64(clientID),
 		Notes:           notesPtr,
-		DiscountPercent: discountPercent,
+		DiscountPercent: 0, // Global discount is just UI helper - don't store or use in calculations
 		Items:           orderItems,
 	}
 
