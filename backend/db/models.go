@@ -111,6 +111,24 @@ type Payment struct {
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
+// DebtPayment represents a debt adjustment record
+type DebtPayment struct {
+	ID                 int64     `json:"id" db:"id"`
+	ClientID           int64     `json:"client_id" db:"client_id"`
+	PreviousDebtCents  int64     `json:"previous_debt_cents" db:"previous_debt_cents"`
+	NewDebtCents       int64     `json:"new_debt_cents" db:"new_debt_cents"`
+	AdjustmentCents    int64     `json:"adjustment_cents" db:"adjustment_cents"` // positive for increase, negative for decrease
+	Type               string    `json:"type" db:"type"`                         // "INCREASE" or "DECREASE"
+	Notes              *string   `json:"notes" db:"notes"`
+	CreatedAt          time.Time `json:"created_at" db:"created_at"`
+}
+
+// DebtPaymentDetail includes debt payment with client info
+type DebtPaymentDetail struct {
+	DebtPayment DebtPayment `json:"debt_payment"`
+	Client      Client      `json:"client"`
+}
+
 // DTOs for complex operations
 
 // OrderDetail includes order with client and items
@@ -256,4 +274,7 @@ const (
 	PaymentMethodCard     = "CARD"
 	PaymentMethodTransfer = "TRANSFER"
 	PaymentMethodOther    = "OTHER"
+
+	DebtPaymentTypeIncrease = "INCREASE"
+	DebtPaymentTypeDecrease = "DECREASE"
 )

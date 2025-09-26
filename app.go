@@ -195,12 +195,35 @@ func (a *App) UpdateClient(id int, name, phone, address string, debtCents int64)
 	return a.clientService.Update(a.ctx, client)
 }
 
-// AdjustClientDebt adjusts a client's debt by delta cents
-func (a *App) AdjustClientDebt(id int, deltaCents int64) (*db.Client, error) {
+// AdjustClientDebt adjusts a client's debt by delta cents and creates a debt payment record
+func (a *App) AdjustClientDebt(id int, deltaCents int64, notes string) (*db.Client, error) {
 	if err := a.ensureReady(); err != nil {
 		return nil, err
 	}
-	return a.clientService.AdjustDebt(a.ctx, int64(id), deltaCents)
+	
+	var notesPtr *string
+	if notes != "" {
+		notesPtr = &notes
+	}
+	
+	client, _, err := a.clientService.AdjustDebt(a.ctx, int64(id), deltaCents, notesPtr)
+	return client, err
+}
+
+// GetDebtPayments retrieves all debt payment records
+func (a *App) GetDebtPayments(limit, offset int) (*db.PaginatedResult[db.DebtPaymentDetail], error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
+	return a.clientService.GetDebtPayments(a.ctx, limit, offset)
+}
+
+// GetClientDebtPayments retrieves debt payment records for a specific client
+func (a *App) GetClientDebtPayments(clientID, limit, offset int) (*db.PaginatedResult[db.DebtPayment], error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
+	return a.clientService.GetClientDebtPayments(a.ctx, int64(clientID), limit, offset)
 }
 
 // DeleteClient deletes a client

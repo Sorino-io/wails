@@ -116,6 +116,83 @@ export namespace db {
 		    return a;
 		}
 	}
+	export class DebtPayment {
+	    id: number;
+	    client_id: number;
+	    previous_debt_cents: number;
+	    new_debt_cents: number;
+	    adjustment_cents: number;
+	    type: string;
+	    notes?: string;
+	    // Go type: time
+	    created_at: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new DebtPayment(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.client_id = source["client_id"];
+	        this.previous_debt_cents = source["previous_debt_cents"];
+	        this.new_debt_cents = source["new_debt_cents"];
+	        this.adjustment_cents = source["adjustment_cents"];
+	        this.type = source["type"];
+	        this.notes = source["notes"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DebtPaymentDetail {
+	    debt_payment: DebtPayment;
+	    client: Client;
+	
+	    static createFrom(source: any = {}) {
+	        return new DebtPaymentDetail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.debt_payment = this.convertValues(source["debt_payment"], DebtPayment);
+	        this.client = this.convertValues(source["client"], Client);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Order {
 	    id: number;
 	    order_number: string;
@@ -254,6 +331,70 @@ export namespace db {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], Client);
+	        this.total = source["total"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class PaginatedResult_myproject_backend_db_DebtPaymentDetail_ {
+	    data: DebtPaymentDetail[];
+	    total: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PaginatedResult_myproject_backend_db_DebtPaymentDetail_(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], DebtPaymentDetail);
+	        this.total = source["total"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class PaginatedResult_myproject_backend_db_DebtPayment_ {
+	    data: DebtPayment[];
+	    total: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PaginatedResult_myproject_backend_db_DebtPayment_(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], DebtPayment);
 	        this.total = source["total"];
 	    }
 	

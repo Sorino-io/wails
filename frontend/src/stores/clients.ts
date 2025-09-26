@@ -7,6 +7,8 @@ import {
   UpdateClient,
   AdjustClientDebt,
   DeleteClient,
+  GetDebtPayments,
+  GetClientDebtPayments,
 } from "../../wailsjs/go/main/App";
 
 export interface Client {
@@ -133,11 +135,11 @@ export const useClientStore = defineStore("clients", () => {
     error.value = null;
   }
 
-  async function adjustDebt(clientId: number, deltaCents: number) {
+  async function adjustDebt(clientId: number, deltaCents: number, notes?: string) {
     loading.value = true;
     error.value = null;
     try {
-      const result = await AdjustClientDebt(clientId, deltaCents);
+      const result = await AdjustClientDebt(clientId, deltaCents, notes || "");
       const index = clients.value.findIndex((c) => c.id === clientId);
       if (index !== -1) {
         clients.value[index] = result;
@@ -147,6 +149,38 @@ export const useClientStore = defineStore("clients", () => {
       console.error("Error adjusting client debt:", err);
       error.value =
         err instanceof Error ? err.message : "فشل في تعديل دين العميل";
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchDebtPayments(limit = 20, offset = 0) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const result = await GetDebtPayments(limit, offset);
+      return result;
+    } catch (err) {
+      console.error("Error fetching debt payments:", err);
+      error.value =
+        err instanceof Error ? err.message : "فشل في جلب سجلات المدفوعات";
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchClientDebtPayments(clientId: number, limit = 20, offset = 0) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const result = await GetClientDebtPayments(clientId, limit, offset);
+      return result;
+    } catch (err) {
+      console.error("Error fetching client debt payments:", err);
+      error.value =
+        err instanceof Error ? err.message : "فشل في جلب سجلات مدفوعات العميل";
       throw err;
     } finally {
       loading.value = false;
@@ -167,5 +201,7 @@ export const useClientStore = defineStore("clients", () => {
     clearError,
     adjustDebt,
     deleteClient,
+    fetchDebtPayments,
+    fetchClientDebtPayments,
   };
 });

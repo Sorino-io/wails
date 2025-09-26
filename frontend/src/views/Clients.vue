@@ -273,6 +273,15 @@
               class="form-input"
             />
           </div>
+          <div class="mb-4">
+            <label class="form-label">{{ $t("fields.notes") }}</label>
+            <textarea
+              v-model="adjustNotes"
+              class="form-input"
+              rows="3"
+              :placeholder="$t('fields.notes')"
+            ></textarea>
+          </div>
           <div class="flex justify-end space-x-3 space-x-reverse">
             <button
               type="button"
@@ -492,6 +501,7 @@ const showAdjustModal = ref(false);
 const showConfirmAdjustModal = ref(false);
 const adjustTarget = ref<any>(null);
 const adjustAmount = ref<number>(0);
+const adjustNotes = ref<string>("");
 // Allow both increasing and decreasing debt
 const adjustMode = ref<"inc" | "dec">("dec");
 
@@ -499,6 +509,7 @@ function openAdjustDebt(client: any, mode: "inc" | "dec" = "dec") {
   adjustTarget.value = client;
   adjustMode.value = mode;
   adjustAmount.value = 0;
+  adjustNotes.value = "";
   showAdjustModal.value = true;
 }
 
@@ -506,6 +517,7 @@ function closeAdjustModal() {
   showAdjustModal.value = false;
   adjustTarget.value = null;
   adjustAmount.value = 0;
+  adjustNotes.value = "";
 }
 
 function openConfirmAdjustDebt() {
@@ -533,7 +545,7 @@ async function applyAdjustDebt() {
   }
 
   try {
-    await clientStore.adjustDebt(adjustTarget.value.id, delta);
+    await clientStore.adjustDebt(adjustTarget.value.id, delta, adjustNotes.value);
     await loadClients();
     closeAdjustModal();
     showConfirmAdjustModal.value = false;

@@ -72,22 +72,58 @@ func (s *ClientService) Update(ctx context.Context, client db.Client) (*db.Clien
 	return s.repo.UpdateClient(ctx, client)
 }
 
-// AdjustDebt adjusts a client's debt by deltaCents (can be negative)
-func (s *ClientService) AdjustDebt(ctx context.Context, clientID int64, deltaCents int64) (*db.Client, error) {
+// AdjustDebt adjusts a client's debt by deltaCents (can be negative) and creates a debt payment record
+func (s *ClientService) AdjustDebt(ctx context.Context, clientID int64, deltaCents int64, notes *string) (*db.Client, *db.DebtPayment, error) {
+	if clientID <= 0 {
+		return nil, nil, fmt.Errorf("معرف العميل غير صحيح")
+	}
+	
+	// Check if client exists
+	_, err := s.repo.GetClient(ctx, clientID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("العميل غير موجود")
+	}
+	
+	// Don't allow negative debt
+	client, err := s.repo.GetClient(ctx, clientID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("فشل في الحصول على معلومات العميل")
+	}
+	
+	newDebt := client.DebtCents + deltaCents
+	if newDebt < 0 {
+		deltaCents = -client.DebtCents // Adjust delta to bring debt to 0
+	}
+	
+	return s.repo.AdjustClientDebt(ctx, clientID, deltaCents, notes)
+}
+
+// GetDebtPayments retrieves all debt payment records with pagination
+func (s *ClientService) GetDebtPayments(ctx context.Context, limit, offset int) (*db.PaginatedResult[db.DebtPaymentDetail], error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	
+	return s.repo.GetDebtPayments(ctx, limit, offset)
+}
+
+// GetClientDebtPayments retrieves debt payment records for a specific client
+func (s *ClientService) GetClientDebtPayments(ctx context.Context, clientID int64, limit, offset int) (*db.PaginatedResult[db.DebtPayment], error) {
 	if clientID <= 0 {
 		return nil, fmt.Errorf("معرف العميل غير صحيح")
 	}
-	// Fetch client to ensure exists
-	client, err := s.repo.GetClient(ctx, clientID)
-	if err != nil {
-		return nil, fmt.Errorf("العميل غير موجود")
+	
+	if limit <= 0 {
+		limit = 20
 	}
-	newDebt := client.DebtCents + deltaCents
-	if newDebt < 0 {
-		newDebt = 0 // prevent negative debt
+	if limit > 100 {
+		limit = 100
 	}
-	client.DebtCents = newDebt
-	return s.repo.UpdateClient(ctx, *client)
+	
+	return s.repo.GetClientDebtPayments(ctx, clientID, limit, offset)
 }
 
 // Delete removes a client if no restricting relations block it

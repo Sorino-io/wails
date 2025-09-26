@@ -225,6 +225,7 @@
   "payments": {
     "title": "Payment Management",
     "subtitle": "Manage and record customer payments",
+    "debt_history_subtitle": "Track client debt adjustments and payment history",
     "create": "Record New Payment",
     "list": "Payment List",
     "details": "Payment Details",
@@ -241,6 +242,14 @@
     "method": "Method",
     "no_payments": "No payments found",
     "no_payments_subtitle": "Start by adding your first payment",
+    "no_debt_payments": "No debt payment records found",
+    "no_debt_payments_subtitle": "Debt adjustments will appear here when clients make payments or receive corrections",
+    "previous_debt": "Previous Debt",
+    "new_debt": "New Debt", 
+    "adjustment": "Adjustment",
+    "type": "Type",
+    "debt_increase": "Debt Increase",
+    "debt_decrease": "Debt Decrease",
     "noData": "No payments yet"
   },
   "currency": {

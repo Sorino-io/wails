@@ -102,6 +102,17 @@ CREATE TABLE IF NOT EXISTS payment (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS debt_payment (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL REFERENCES client(id) ON DELETE CASCADE,
+    previous_debt_cents INTEGER NOT NULL,
+    new_debt_cents INTEGER NOT NULL,
+    adjustment_cents INTEGER NOT NULL, -- positive for increase, negative for decrease
+    type TEXT NOT NULL CHECK(type IN ('INCREASE', 'DECREASE')), -- for clarity
+    notes TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes (idempotent)
 CREATE INDEX IF NOT EXISTS idx_client_name ON client(name);
 CREATE INDEX IF NOT EXISTS idx_product_name ON product(name);
@@ -120,6 +131,8 @@ CREATE INDEX IF NOT EXISTS idx_invoice_item_invoice_id ON invoice_item(invoice_i
 CREATE INDEX IF NOT EXISTS idx_invoice_item_product_id ON invoice_item(product_id);
 CREATE INDEX IF NOT EXISTS idx_payment_invoice_id ON payment(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_payment_paid_at ON payment(paid_at);
+CREATE INDEX IF NOT EXISTS idx_debt_payment_client_id ON debt_payment(client_id);
+CREATE INDEX IF NOT EXISTS idx_debt_payment_created_at ON debt_payment(created_at);
 
 -- Recreate views safely
 DROP VIEW IF EXISTS vw_revenue_by_month;

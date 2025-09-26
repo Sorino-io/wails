@@ -7,64 +7,36 @@
           {{ $t('nav.payments') }}
         </h1>
         <p class="text-gray-600">
-          {{ $t('payments.subtitle') }}
+          {{ $t('payments.debt_history_subtitle') }}
         </p>
       </div>
 
-      <!-- Action Bar -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-        <div class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-          <!-- Search -->
-          <div class="flex-1 max-w-md">
-            <div class="relative">
-              <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                v-model="searchQuery"
-                type="text"
-                :placeholder="$t('payments.search_placeholder')"
-                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                @input="handleSearch"
-              >
-            </div>
-          </div>
-          
-          <!-- Add Button -->
-          <button
-            @click="openCreateModal"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-          >
-            <PlusIcon class="h-5 w-5" />
-            <span>{{ $t('payments.add_payment') }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Payments Table -->
+      <!-- Debt Payments Table -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {{ $t('payments.payment_reference') }}
+                  {{ $t('fields.client') }}
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {{ $t('payments.invoice') }}
+                  {{ $t('payments.previous_debt') }}
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {{ $t('payments.client') }}
+                  {{ $t('payments.new_debt') }}
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {{ $t('payments.method') }}
+                  {{ $t('payments.adjustment') }}
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {{ $t('payments.amount') }}
+                  {{ $t('payments.type') }}
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {{ $t('payments.date') }}
+                  {{ $t('fields.date') }}
                 </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {{ $t('common.actions') }}
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {{ $t('fields.notes') }}
                 </th>
               </tr>
             </thead>
@@ -74,65 +46,84 @@
                   <div class="animate-pulse bg-gray-200 h-4 rounded"></div>
                 </td>
               </tr>
-              <tr v-else-if="payments.length === 0">
+              <tr v-else-if="debtPayments.length === 0">
                 <td colspan="7" class="px-6 py-12 text-center text-gray-500">
                   <CreditCardIcon class="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p class="text-lg font-medium mb-2">{{ $t('payments.no_payments') }}</p>
-                  <p class="text-sm">{{ $t('payments.no_payments_subtitle') }}</p>
+                  <p class="text-lg font-medium mb-2">{{ $t('payments.no_debt_payments') }}</p>
+                  <p class="text-sm">{{ $t('payments.no_debt_payments_subtitle') }}</p>
                 </td>
               </tr>
-              <tr v-else v-for="payment in payments" :key="payment.id" class="hover:bg-gray-50">
+              <tr v-else v-for="payment in debtPayments" :key="payment.debt_payment.id" class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm font-medium text-gray-900">
-                    {{ payment.reference || 'N/A' }}
+                    {{ payment.client.name }}
+                  </div>
+                  <div v-if="payment.client.phone" class="text-sm text-gray-500">
+                    {{ payment.client.phone }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm text-gray-900">
-                    {{ getInvoiceNumber(payment.invoice_id) }}
+                    {{ formatCurrency(payment.debt_payment.previous_debt_cents || 0) }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm text-gray-900">
-                    {{ getClientName(payment.client_id) }}
+                    {{ formatCurrency(payment.debt_payment.new_debt_cents || 0) }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-900 capitalize">
-                    {{ payment.method }}
+                  <div class="text-sm font-medium" 
+                       :class="payment.debt_payment.adjustment_cents >= 0 ? 'text-red-600' : 'text-green-600'">
+                    {{ payment.debt_payment.adjustment_cents >= 0 ? '+' : '' }}{{ formatCurrency(payment.debt_payment.adjustment_cents || 0) }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-900">
-                    {{ formatCurrency(payment.amount_cents || 0) }}
-                  </div>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        :class="payment.debt_payment.type === 'INCREASE' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'">
+                    {{ payment.debt_payment.type === 'INCREASE' ? $t('payments.debt_increase') : $t('payments.debt_decrease') }}
+                  </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm text-gray-500">
-                    {{ formatDate(payment.payment_date) }}
+                    {{ formatDate(payment.debt_payment.created_at) }}
                   </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div class="flex items-center justify-end space-x-2">
-                    <button
-                      @click="viewPayment(payment)"
-                      class="text-blue-600 hover:text-blue-900 p-1 rounded transition-colors"
-                      :title="$t('common.view')"
-                    >
-                      <EyeIcon class="h-4 w-4" />
-                    </button>
-                    <button
-                      @click="editPayment(payment)"
-                      class="text-green-600 hover:text-green-900 p-1 rounded transition-colors"
-                      :title="$t('common.edit')"
-                    >
-                      <PencilIcon class="h-4 w-4" />
-                    </button>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-500 max-w-xs truncate">
+                    {{ payment.debt_payment.notes || '-' }}
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div v-if="!loading && debtPayments.length > 0" class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+          <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-700">
+              {{ $t('pagination.showing') }} {{ offset + 1 }} {{ $t('pagination.to') }} 
+              {{ Math.min(offset + limit, total) }} {{ $t('pagination.of') }} {{ total }} 
+              {{ $t('pagination.results') }}
+            </div>
+            <div class="flex space-x-2">
+              <button
+                @click="previousPage"
+                :disabled="offset === 0"
+                class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ $t('pagination.previous') }}
+              </button>
+              <button
+                @click="nextPage"
+                :disabled="offset + limit >= total"
+                class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ $t('pagination.next') }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -142,55 +133,37 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useClientStore } from '../stores/clients'
 import {
-  MagnifyingGlassIcon,
-  PlusIcon,
-  EyeIcon,
-  PencilIcon,
   CreditCardIcon
 } from '@heroicons/vue/24/outline'
 
 const { t } = useI18n()
+const clientStore = useClientStore()
 
 // State
-const payments = ref<any[]>([])
-const invoices = ref<any[]>([])
-const clients = ref<any[]>([])
+const debtPayments = ref<any[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
-const searchQuery = ref('')
+const total = ref(0)
+const limit = ref(20)
+const offset = ref(0)
 
 // Methods
-const fetchPayments = async () => {
+const fetchDebtPayments = async () => {
   try {
     loading.value = true
     error.value = null
     
-    // TODO: Implement GetPayments API call
-    // const result = await GetPayments(searchQuery.value, 20, 0)
-    // payments.value = result.data || []
-    
-    // Mock data for now
-    payments.value = []
+    const result = await clientStore.fetchDebtPayments(limit.value, offset.value)
+    debtPayments.value = result.data || []
+    total.value = result.total || 0
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to fetch payments'
+    error.value = err instanceof Error ? err.message : 'Failed to fetch debt payments'
+    console.error('Error fetching debt payments:', err)
   } finally {
     loading.value = false
   }
-}
-
-const handleSearch = () => {
-  fetchPayments()
-}
-
-const getInvoiceNumber = (invoiceId: number) => {
-  const invoice = invoices.value.find((i: any) => i.id === invoiceId)
-  return invoice ? invoice.invoice_number : 'N/A'
-}
-
-const getClientName = (clientId: number) => {
-  const client = clients.value.find((c: any) => c.id === clientId)
-  return client ? client.name : 'Unknown Client'
 }
 
 const formatCurrency = (cents: number) => {
@@ -204,23 +177,22 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString()
 }
 
-const openCreateModal = () => {
-  // TODO: Implement create payment modal
-  console.log('Create payment')
+const previousPage = () => {
+  if (offset.value > 0) {
+    offset.value = Math.max(0, offset.value - limit.value)
+    fetchDebtPayments()
+  }
 }
 
-const viewPayment = (payment: any) => {
-  // TODO: Implement view payment
-  console.log('View payment:', payment)
-}
-
-const editPayment = (payment: any) => {
-  // TODO: Implement edit payment
-  console.log('Edit payment:', payment)
+const nextPage = () => {
+  if (offset.value + limit.value < total.value) {
+    offset.value += limit.value
+    fetchDebtPayments()
+  }
 }
 
 // Lifecycle
 onMounted(() => {
-  fetchPayments()
+  fetchDebtPayments()
 })
 </script>

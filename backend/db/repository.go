@@ -130,6 +130,256 @@ func (r *Repository) DeleteClient(ctx context.Context, id int64) error {
 	return nil
 }
 
+// Debt Payment operations
+
+func (r *Repository) CreateDebtPayment(ctx context.Context, clientID int64, previousDebt int64, newDebt int64, adjustmentType string, notes *string) (*DebtPayment, error) {
+	debug := false
+	if v, ok := os.LookupEnv("DEBUG_CLIENTS"); ok && v != "" && v != "0" {
+		debug = true
+	}
+	
+	adjustmentCents := newDebt - previousDebt
+	if debug {
+		log.Printf("[debt_payment] Creating debt payment record: client_id=%d, prev=%d, new=%d, adjustment=%d, type=%s", 
+			clientID, previousDebt, newDebt, adjustmentCents, adjustmentType)
+	}
+	
+	query := `
+		INSERT INTO debt_payment (client_id, previous_debt_cents, new_debt_cents, adjustment_cents, type, notes, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`
+	result, err := r.db.ExecContext(ctx, query, clientID, previousDebt, newDebt, adjustmentCents, adjustmentType, notes)
+	if err != nil {
+		if debug {
+			log.Printf("[debt_payment] SQL error: %v", err)
+		}
+		return nil, fmt.Errorf("failed to create debt payment record: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get debt payment ID: %w", err)
+	}
+
+	debtPayment := &DebtPayment{
+		ID:                id,
+		ClientID:          clientID,
+		PreviousDebtCents: previousDebt,
+		NewDebtCents:      newDebt,
+		AdjustmentCents:   adjustmentCents,
+		Type:              adjustmentType,
+		Notes:             notes,
+		CreatedAt:         time.Now(),
+	}
+
+	if debug {
+		log.Printf("[debt_payment] Created debt payment record: id=%d", id)
+	}
+	return debtPayment, nil
+}
+
+func (r *Repository) GetDebtPayments(ctx context.Context, limit, offset int) (*PaginatedResult[DebtPaymentDetail], error) {
+	// Get total count
+	var total int
+	countQuery := `SELECT COUNT(*) FROM debt_payment`
+	err := r.db.QueryRowContext(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count debt payments: %w", err)
+	}
+
+	// Get debt payments with client info
+	query := `
+		SELECT 
+			dp.id, dp.client_id, dp.previous_debt_cents, dp.new_debt_cents, 
+			dp.adjustment_cents, dp.type, dp.notes, dp.created_at,
+			c.name, c.phone, c.address, c.debt_cents, c.created_at, c.updated_at
+		FROM debt_payment dp
+		JOIN client c ON dp.client_id = c.id
+		ORDER BY dp.created_at DESC
+		LIMIT ? OFFSET ?
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get debt payments: %w", err)
+	}
+	defer rows.Close()
+
+	var details []DebtPaymentDetail
+	for rows.Next() {
+		var detail DebtPaymentDetail
+		err := rows.Scan(
+			&detail.DebtPayment.ID, &detail.DebtPayment.ClientID,
+			&detail.DebtPayment.PreviousDebtCents, &detail.DebtPayment.NewDebtCents,
+			&detail.DebtPayment.AdjustmentCents, &detail.DebtPayment.Type,
+			&detail.DebtPayment.Notes, &detail.DebtPayment.CreatedAt,
+			&detail.Client.Name, &detail.Client.Phone, &detail.Client.Address,
+			&detail.Client.DebtCents, &detail.Client.CreatedAt, &detail.Client.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan debt payment: %w", err)
+		}
+		detail.Client.ID = detail.DebtPayment.ClientID
+		details = append(details, detail)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate debt payments: %w", err)
+	}
+
+	return &PaginatedResult[DebtPaymentDetail]{
+		Data:  details,
+		Total: total,
+	}, nil
+}
+
+func (r *Repository) GetClientDebtPayments(ctx context.Context, clientID int64, limit, offset int) (*PaginatedResult[DebtPayment], error) {
+	// Get total count for client
+	var total int
+	countQuery := `SELECT COUNT(*) FROM debt_payment WHERE client_id = ?`
+	err := r.db.QueryRowContext(ctx, countQuery, clientID).Scan(&total)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count client debt payments: %w", err)
+	}
+
+	// Get debt payments for specific client
+	query := `
+		SELECT id, client_id, previous_debt_cents, new_debt_cents, adjustment_cents, type, notes, created_at
+		FROM debt_payment 
+		WHERE client_id = ?
+		ORDER BY created_at DESC
+		LIMIT ? OFFSET ?
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, clientID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client debt payments: %w", err)
+	}
+	defer rows.Close()
+
+	var debtPayments []DebtPayment
+	for rows.Next() {
+		var dp DebtPayment
+		err := rows.Scan(
+			&dp.ID, &dp.ClientID, &dp.PreviousDebtCents, &dp.NewDebtCents,
+			&dp.AdjustmentCents, &dp.Type, &dp.Notes, &dp.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan debt payment: %w", err)
+		}
+		debtPayments = append(debtPayments, dp)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate client debt payments: %w", err)
+	}
+
+	return &PaginatedResult[DebtPayment]{
+		Data:  debtPayments,
+		Total: total,
+	}, nil
+}
+
+// AdjustClientDebt adjusts a client's debt and creates a debt payment record
+func (r *Repository) AdjustClientDebt(ctx context.Context, clientID int64, adjustmentCents int64, notes *string) (*Client, *DebtPayment, error) {
+	debug := false
+	if v, ok := os.LookupEnv("DEBUG_CLIENTS"); ok && v != "" && v != "0" {
+		debug = true
+	}
+	
+	if debug {
+		log.Printf("[debt_payment] AdjustClientDebt: client_id=%d, adjustment=%d", clientID, adjustmentCents)
+	}
+	
+	// Start transaction
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get current client debt
+	var currentDebt int64
+	err = tx.QueryRowContext(ctx, `SELECT debt_cents FROM client WHERE id = ?`, clientID).Scan(&currentDebt)
+	if err != nil {
+		if debug {
+			log.Printf("[debt_payment] Failed to get current debt: %v", err)
+		}
+		return nil, nil, fmt.Errorf("failed to get client debt: %w", err)
+	}
+
+	newDebt := currentDebt + adjustmentCents
+	if debug {
+		log.Printf("[debt_payment] Debt change: %d -> %d (adjustment: %d)", currentDebt, newDebt, adjustmentCents)
+	}
+
+	// Update client debt
+	_, err = tx.ExecContext(ctx, `UPDATE client SET debt_cents = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, newDebt, clientID)
+	if err != nil {
+		if debug {
+			log.Printf("[debt_payment] Failed to update client debt: %v", err)
+		}
+		return nil, nil, fmt.Errorf("failed to update client debt: %w", err)
+	}
+
+	// Determine the adjustment type
+	adjustmentType := DebtPaymentTypeIncrease
+	if adjustmentCents < 0 {
+		adjustmentType = DebtPaymentTypeDecrease
+	}
+
+	// Create debt payment record
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO debt_payment (client_id, previous_debt_cents, new_debt_cents, adjustment_cents, type, notes, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`, clientID, currentDebt, newDebt, adjustmentCents, adjustmentType, notes)
+	if err != nil {
+		if debug {
+			log.Printf("[debt_payment] Failed to create debt payment record: %v", err)
+		}
+		return nil, nil, fmt.Errorf("failed to create debt payment record: %w", err)
+	}
+
+	// Get the debt payment ID
+	var debtPaymentID int64
+	err = tx.QueryRowContext(ctx, `SELECT last_insert_rowid()`).Scan(&debtPaymentID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get debt payment ID: %w", err)
+	}
+
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		if debug {
+			log.Printf("[debt_payment] Failed to commit transaction: %v", err)
+		}
+		return nil, nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Get updated client
+	client, err := r.GetClient(ctx, clientID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get updated client: %w", err)
+	}
+
+	// Create debt payment object for return
+	debtPayment := &DebtPayment{
+		ID:                debtPaymentID,
+		ClientID:          clientID,
+		PreviousDebtCents: currentDebt,
+		NewDebtCents:      newDebt,
+		AdjustmentCents:   adjustmentCents,
+		Type:              adjustmentType,
+		Notes:             notes,
+		CreatedAt:         time.Now(),
+	}
+
+	if debug {
+		log.Printf("[debt_payment] AdjustClientDebt completed successfully: debt_payment_id=%d", debtPaymentID)
+	}
+
+	return client, debtPayment, nil
+}
+
 // Product operations
 
 func (r *Repository) CreateProduct(ctx context.Context, product Product) (*Product, error) {
