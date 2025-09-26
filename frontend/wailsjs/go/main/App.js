@@ -6,6 +6,10 @@ export function AdjustClientDebt(arg1, arg2, arg3) {
   return window['go']['main']['App']['AdjustClientDebt'](arg1, arg2, arg3);
 }
 
+export function CheckLicense() {
+  return window['go']['main']['App']['CheckLicense']();
+}
+
 export function CreateClient(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateClient'](arg1, arg2, arg3);
 }
@@ -92,4 +96,8 @@ export function UpdateOrder(arg1, arg2, arg3, arg4, arg5) {
 
 export function UpdateProduct(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['UpdateProduct'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function ValidateLicense() {
+  return window['go']['main']['App']['ValidateLicense']();
 }

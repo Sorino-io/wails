@@ -17,7 +17,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "نظام الفوترة وإدارة الطلبات", // Invoice and Order Management System
+		Title:  "barakaERP - نظام إدارة الفوترة والطلبات", // barakaERP - Invoice and Order Management System
 		Width:  1200,
 		Height: 800,
 		AssetServer: &assetserver.Options{

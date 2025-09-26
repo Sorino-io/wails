@@ -4,3 +4,6 @@ frontend/dist
 /build
 /build.zip
 /frontend/wailsjs
+
+# Environment variables
+.env

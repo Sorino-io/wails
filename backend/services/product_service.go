@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
-	"myproject/backend/db"
+	"barakaERP/backend/db"
 )
 
 // ProductService handles product-related business logic

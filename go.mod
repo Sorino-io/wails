@@ -1,4 +1,4 @@
-module myproject
+module barakaERP
 
 go 1.23.0
 

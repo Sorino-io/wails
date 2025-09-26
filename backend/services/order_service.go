@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
-	"myproject/backend/db"
+	"barakaERP/backend/db"
 )
 
 // OrderService handles order-related business logic

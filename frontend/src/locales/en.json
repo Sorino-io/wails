@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "Invoice and Order Management System",
-    "subtitle": "Manage clients, products, orders and invoices"
+    "title": "barakaERP",
+    "subtitle": "Invoice and Order Management System"
   },
   "nav": {
     "dashboard": "Dashboard",

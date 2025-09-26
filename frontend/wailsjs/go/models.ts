@@ -320,12 +320,12 @@ export namespace db {
 		}
 	}
 	
-	export class PaginatedResult_myproject_backend_db_Client_ {
+	export class PaginatedResult_barakaERP_backend_db_Client_ {
 	    data: Client[];
 	    total: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new PaginatedResult_myproject_backend_db_Client_(source);
+	        return new PaginatedResult_barakaERP_backend_db_Client_(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -352,12 +352,12 @@ export namespace db {
 		    return a;
 		}
 	}
-	export class PaginatedResult_myproject_backend_db_DebtPaymentDetail_ {
+	export class PaginatedResult_barakaERP_backend_db_DebtPaymentDetail_ {
 	    data: DebtPaymentDetail[];
 	    total: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new PaginatedResult_myproject_backend_db_DebtPaymentDetail_(source);
+	        return new PaginatedResult_barakaERP_backend_db_DebtPaymentDetail_(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -384,12 +384,12 @@ export namespace db {
 		    return a;
 		}
 	}
-	export class PaginatedResult_myproject_backend_db_DebtPayment_ {
+	export class PaginatedResult_barakaERP_backend_db_DebtPayment_ {
 	    data: DebtPayment[];
 	    total: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new PaginatedResult_myproject_backend_db_DebtPayment_(source);
+	        return new PaginatedResult_barakaERP_backend_db_DebtPayment_(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -416,12 +416,12 @@ export namespace db {
 		    return a;
 		}
 	}
-	export class PaginatedResult_myproject_backend_db_OrderDetail_ {
+	export class PaginatedResult_barakaERP_backend_db_OrderDetail_ {
 	    data: OrderDetail[];
 	    total: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new PaginatedResult_myproject_backend_db_OrderDetail_(source);
+	        return new PaginatedResult_barakaERP_backend_db_OrderDetail_(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -496,12 +496,12 @@ export namespace db {
 		    return a;
 		}
 	}
-	export class PaginatedResult_myproject_backend_db_Product_ {
+	export class PaginatedResult_barakaERP_backend_db_Product_ {
 	    data: Product[];
 	    total: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new PaginatedResult_myproject_backend_db_Product_(source);
+	        return new PaginatedResult_barakaERP_backend_db_Product_(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -530,6 +530,27 @@ export namespace db {
 	}
 	
 	
+
+}
+
+export namespace services {
+	
+	export class LicenseStatus {
+	    is_valid: boolean;
+	    message: string;
+	    expires_at?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LicenseStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.is_valid = source["is_valid"];
+	        this.message = source["message"];
+	        this.expires_at = source["expires_at"];
+	    }
+	}
 
 }
 

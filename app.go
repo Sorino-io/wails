@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"myproject/backend/db"
-	"myproject/backend/pdf"
-	"myproject/backend/services"
+	"barakaERP/backend/db"
+	"barakaERP/backend/pdf"
+	"barakaERP/backend/services"
 	"os"
 	"path/filepath"
 )
@@ -24,6 +24,7 @@ type App struct {
 	clientService  *services.ClientService
 	productService *services.ProductService
 	orderService   *services.OrderService
+	licenseService *services.LicenseService
 	orderPDF       *pdf.OrderPDFGenerator
 	amiriFont      embed.FS
 	// initialization state
@@ -48,7 +49,7 @@ func (a *App) startup(ctx context.Context) {
 		log.Printf(a.initErr.Error())
 		return
 	}
-	appDir := filepath.Join(configDir, "myproject")
+	appDir := filepath.Join(configDir, "barakaERP")
 
 	// Setup file logging early so we capture any init errors in packaged builds
 	_ = os.MkdirAll(appDir, 0755)
@@ -96,6 +97,7 @@ func (a *App) startup(ctx context.Context) {
 	a.clientService = services.NewClientService(a.repo)
 	a.productService = services.NewProductService(a.repo)
 	a.orderService = services.NewOrderService(a.repo)
+	a.licenseService = services.NewLicenseService()
 	log.Printf("✓ Services initialized successfully!")
 
 	// Initialize PDF generators
@@ -525,11 +527,29 @@ func (a *App) ExportOrderPDF(orderID int) ([]byte, error) {
 
 // ensureReady verifies backend initialization before handling a request
 func (a *App) ensureReady() error {
-	if a.initialized && a.repo != nil && a.clientService != nil && a.productService != nil && a.orderService != nil {
+	if a.initialized && a.repo != nil && a.clientService != nil && a.productService != nil && a.orderService != nil && a.licenseService != nil {
 		return nil
 	}
 	if a.initErr != nil {
 		return fmt.Errorf("backend not initialized: %w", a.initErr)
 	}
 	return fmt.Errorf("backend not initialized yet, please wait")
+}
+
+// License validation methods
+
+// ValidateLicense checks the license status
+func (a *App) ValidateLicense() (*services.LicenseStatus, error) {
+	if err := a.ensureReady(); err != nil {
+		return nil, err
+	}
+	return a.licenseService.ValidateLicense()
+}
+
+// CheckLicense performs a quick license check
+func (a *App) CheckLicense() bool {
+	if err := a.ensureReady(); err != nil {
+		return false
+	}
+	return a.licenseService.CheckLicenseQuiet()
 }
