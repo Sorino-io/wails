@@ -69,11 +69,20 @@
                     <PencilIcon class="h-4 w-4" />
                   </button>
                   <button
-                    @click="openAdjustDebt(client)"
-                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-800 hover:bg-green-200 border border-green-300 transition"
+                    @click="openAdjustDebt(client, 'dec')"
+                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-red-100 text-red-800 hover:bg-red-200 border border-red-300 transition"
+                    :title="$t('clients.decrease_debt')"
                   >
                     <ArrowDownIcon class="h-4 w-4" />
-                    <span>{{ $t("clients.adjust_debt") }}</span>
+                    <span>-</span>
+                  </button>
+                  <button
+                    @click="openAdjustDebt(client, 'inc')"
+                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-800 hover:bg-green-200 border border-green-300 transition"
+                    :title="$t('clients.increase_debt')"
+                  >
+                    <ArrowUpIcon class="h-4 w-4" />
+                    <span>+</span>
                   </button>
                 </div>
               </td>
@@ -242,10 +251,18 @@
       >
         <div class="mt-3">
           <h3 class="text-lg font-medium text-gray-900 mb-4">
-            {{ $t("clients.adjust_debt") }}
+            {{
+              adjustMode === "inc"
+                ? $t("clients.increase_debt")
+                : $t("clients.decrease_debt")
+            }}
           </h3>
           <p class="mb-3 text-sm text-gray-600">
-            {{ $t("clients.adjust_debt_hint") }}
+            {{
+              adjustMode === "inc"
+                ? $t("clients.increase_debt_hint")
+                : $t("clients.decrease_debt_hint")
+            }}
           </p>
           <div class="mb-4">
             <label class="form-label">{{ $t("fields.amount") }}</label>
@@ -287,7 +304,11 @@
       >
         <div class="mt-1">
           <h3 class="text-lg font-medium text-gray-900 mb-3">
-            {{ $t("clients.adjust_debt") }}
+            {{
+              adjustMode === "inc"
+                ? $t("clients.increase_debt")
+                : $t("clients.decrease_debt")
+            }}
           </h3>
           <p class="mb-4 text-sm text-gray-700">
             {{ $t("clients.confirm_adjust") }}
@@ -471,12 +492,12 @@ const showAdjustModal = ref(false);
 const showConfirmAdjustModal = ref(false);
 const adjustTarget = ref<any>(null);
 const adjustAmount = ref<number>(0);
-// Only decreasing debt is allowed now
-const adjustMode = ref<"dec">("dec");
+// Allow both increasing and decreasing debt
+const adjustMode = ref<"inc" | "dec">("dec");
 
-function openAdjustDebt(client: any) {
+function openAdjustDebt(client: any, mode: "inc" | "dec" = "dec") {
   adjustTarget.value = client;
-  adjustMode.value = "dec";
+  adjustMode.value = mode;
   adjustAmount.value = 0;
   showAdjustModal.value = true;
 }
@@ -498,12 +519,19 @@ function cancelConfirmAdjust() {
 
 async function applyAdjustDebt() {
   if (!adjustTarget.value) return;
-  let delta = -Math.round(adjustAmount.value * 100); // always decrease
+
+  // Calculate delta based on mode: positive for increase, negative for decrease
+  let delta = Math.round(adjustAmount.value * 100);
+  if (adjustMode.value === "dec") {
+    delta = -delta;
+  }
+
   if (delta === 0) {
     closeAdjustModal();
     showConfirmAdjustModal.value = false;
     return;
   }
+
   try {
     await clientStore.adjustDebt(adjustTarget.value.id, delta);
     await loadClients();
