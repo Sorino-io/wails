@@ -545,7 +545,11 @@ async function applyAdjustDebt() {
   }
 
   try {
-    await clientStore.adjustDebt(adjustTarget.value.id, delta, adjustNotes.value);
+    await clientStore.adjustDebt(
+      adjustTarget.value.id,
+      delta,
+      adjustNotes.value
+    );
     await loadClients();
     closeAdjustModal();
     showConfirmAdjustModal.value = false;

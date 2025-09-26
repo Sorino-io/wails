@@ -135,7 +135,11 @@ export const useClientStore = defineStore("clients", () => {
     error.value = null;
   }
 
-  async function adjustDebt(clientId: number, deltaCents: number, notes?: string) {
+  async function adjustDebt(
+    clientId: number,
+    deltaCents: number,
+    notes?: string
+  ) {
     loading.value = true;
     error.value = null;
     try {
@@ -171,7 +175,11 @@ export const useClientStore = defineStore("clients", () => {
     }
   }
 
-  async function fetchClientDebtPayments(clientId: number, limit = 20, offset = 0) {
+  async function fetchClientDebtPayments(
+    clientId: number,
+    limit = 20,
+    offset = 0
+  ) {
     loading.value = true;
     error.value = null;
     try {
