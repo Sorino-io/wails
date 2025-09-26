@@ -3,6 +3,9 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
+	"strings"
 	"myproject/backend/db"
 )
 
@@ -18,6 +21,10 @@ func NewOrderService(repo *db.Repository) *OrderService {
 
 // Create creates a new order
 func (s *OrderService) Create(ctx context.Context, draft db.OrderDraft) (*db.Order, error) {
+	// Lightweight debug hook
+	if v := os.Getenv("DEBUG_ORDERS"); v != "" && v != "0" && strings.ToLower(v) != "false" {
+		log.Printf("[orders] Create draft client=%d items=%d discount=%d", draft.ClientID, len(draft.Items), draft.DiscountPercent)
+	}
 	// Validate required fields
 	if draft.ClientID <= 0 {
 		return nil, fmt.Errorf("معرف العميل مطلوب") // Client ID is required

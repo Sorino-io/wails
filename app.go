@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"io"
 	"log"
 	"myproject/backend/db"
 	"myproject/backend/pdf"
@@ -12,8 +13,8 @@ import (
 	"path/filepath"
 )
 
-//go:embed backend/db/migrations/*.sql
-var migrationFiles embed.FS
+//go:embed backend/db/schema.sql
+var embeddedDBAssets embed.FS
 
 // App struct
 type App struct {
@@ -49,6 +50,15 @@ func (a *App) startup(ctx context.Context) {
 	}
 	appDir := filepath.Join(configDir, "myproject")
 
+	// Setup file logging early so we capture any init errors in packaged builds
+	_ = os.MkdirAll(appDir, 0755)
+	logFilePath := filepath.Join(appDir, "app.log")
+	if f, ferr := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); ferr == nil {
+		// Log to both file and console (console may not be visible in packaged build, but useful in dev)
+		log.SetOutput(io.MultiWriter(f, os.Stdout))
+		log.Printf("=== App startup at %s ===", filepath.Base(os.Args[0]))
+	}
+
 	// Database file path
 	dbPath := filepath.Join(appDir, "data.db")
 	log.Printf("Connecting to database at: %s", dbPath)
@@ -62,20 +72,24 @@ func (a *App) startup(ctx context.Context) {
 	log.Printf("✓ Database connected successfully!")
 
 	// Run migrations
-	migrationsDir := "./backend/db/migrations"
-	log.Printf("Running migrations from embedded files...")
-
-	// Try to use embedded migrations first (for production builds)
-	if err := a.db.RunEmbeddedMigrations(migrationFiles, "backend/db/migrations"); err != nil {
-		log.Printf("Embedded migrations failed, trying file system: %v", err)
-		// Fallback to file system migrations (for development)
-		if err := a.db.RunMigrations(migrationsDir); err != nil {
-			a.initErr = fmt.Errorf("failed to run migrations: %w", err)
+	log.Printf("Applying consolidated schema from embedded assets...")
+	if err := a.db.ApplyEmbeddedSchema(embeddedDBAssets, "backend/db/schema.sql"); err != nil {
+		log.Printf("Embedded schema apply failed, trying file system copy: %v", err)
+		if err := a.db.ApplySchemaFile("./backend/db/schema.sql"); err != nil {
+			a.initErr = fmt.Errorf("failed to initialize database schema: %w", err)
 			log.Printf(a.initErr.Error())
 			return
 		}
 	}
-	log.Printf("✓ Migrations completed successfully!")
+	log.Printf("✓ Database schema ensured successfully!")
+	// Log schema snapshot for diagnostics
+	if tmpRepo := db.NewRepository(a.db); tmpRepo != nil {
+		if schema, derr := tmpRepo.DebugSchema(a.ctx); derr == nil {
+			for t, cols := range schema {
+				log.Printf("[DB] table=%s cols=%v", t, cols)
+			}
+		}
+	}
 
 	// Initialize repository and services
 	a.repo = db.NewRepository(a.db)
@@ -120,8 +134,10 @@ func (a *App) CreateClient(name, phone, address string) (*db.Client, error) {
 		Address:   addressPtr,
 		DebtCents: 0,
 	}
+	log.Printf("[clients] Create request name=%q phone=%q address=%q", name, phone, address)
 	res, err := a.clientService.Create(a.ctx, client)
 	if err != nil {
+		log.Printf("[clients] Create failed: %v", err)
 		if v, ok := os.LookupEnv("DEBUG_CLIENTS"); ok && v != "" && v != "0" {
 			log.Printf("[clients] CreateClient error: %v", err)
 		}

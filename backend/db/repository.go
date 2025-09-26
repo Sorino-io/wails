@@ -34,6 +34,7 @@ func (r *Repository) CreateClient(ctx context.Context, client Client) (*Client, 
 	result, err := r.db.ExecContext(ctx, query, client.Name, client.Phone, client.Address, client.DebtCents)
 	if err != nil {
 		if debug { log.Printf("[clients] repo CreateClient SQL error: %v", err) }
+		log.Printf("[clients] repo CreateClient FAILED name=%q err=%v", client.Name, err)
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
